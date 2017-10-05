@@ -32,7 +32,7 @@ data Blockchain = Blockchain {
 -- | A building block of the blockchain
 data Block = Block {
   index           :: !Int,            -- ^ Position in the blockchain
-  previousHash   :: !BS.ByteString,     -- ^ Hash of the previous block
+  previousHash    :: !BS.ByteString,  -- ^ Hash of the previous block
   timestamp       :: !UTCTime,        -- ^ Block creation time
   transactions    :: ![Transaction],  -- ^ List of transactions within the block
   proof           :: !Int             -- ^ Proof of work
@@ -87,9 +87,9 @@ getLastBlock = last <$> blocks <$> get
 
 
 -- | Adds new block to the blockchain
-addNewBlock :: Int                          -- ^ Proof of work, must be valid
-            -> Maybe BS.ByteString          -- ^ Optional hash of the previous block, if not provided, will be computed
-            -> UTCTime                      -- ^ Creation time
+addNewBlock :: Int                            -- ^ Proof of work, must be valid
+            -> Maybe BS.ByteString            -- ^ Optional hash of the previous block, if not provided, will be computed
+            -> UTCTime                        -- ^ Creation time
             -> State Blockchain (Maybe Block) -- ^ Modified blockchain and new block if the proof is valid, otherwise `Nothing`
 addNewBlock newBlockProof previousBlockHash creationTime = do
   lastBlockCalculatedHash <- calculateHash <$> getLastBlock
@@ -111,7 +111,8 @@ addNewBlock newBlockProof previousBlockHash creationTime = do
         blocks = (blocks blockchain) ++ [newBlock]
       }
       return $ Just newBlock
-    else return Nothing
+    else
+      return Nothing
 
 
 -- | Calculates SHA256 hash of the block
