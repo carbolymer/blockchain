@@ -1,3 +1,17 @@
+-----------------------------------------------------------------------------
+-- |
+-- Module      :  Blockchain
+-- Copyright   :  (c) carbolymer
+-- License     :  Apache-2.0
+--
+-- Maintainer  :  libraries@haskell.org
+-- Stability   :  experimental
+-- Portability :  POSIX
+--
+-- The blockchain datamodel + core functions
+--
+-----------------------------------------------------------------------------
+
 module  Blockchain (
     Blockchain(..)
   , Block(..)

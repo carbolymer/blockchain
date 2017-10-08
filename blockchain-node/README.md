@@ -1,1 +1,3 @@
-# blockchain
+# blockchain-node
+
+Simple blockchain node

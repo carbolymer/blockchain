@@ -1,37 +1,15 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeOperators #-}
 
 module Main where
 
-import           Control.Monad.Trans.Except
-import           Data.Aeson
-import           GHC.Generics
-import           Network.Wai
-import           Network.Wai.Handler.Warp
-import           Servant
-import           System.IO
+import Control.Monad.IO.Class (liftIO)
+import Network.Wai.Handler.Warp (defaultSettings, runSettings, setBeforeMainLoop, setPort)
+import Servant ((:>), Application, Get, Handler, JSON, Proxy(..), Server, serve)
+import System.IO (hPutStrLn, stderr)
 
-data HealthValue = OK | NOK deriving (Eq, Show, Generic)
-
-instance ToJSON HealthValue
-instance FromJSON HealthValue
-
-data HealthStatus = HealthStatus {
-  health :: HealthValue
-} deriving (Eq, Show, Generic)
-
-instance ToJSON HealthStatus
-instance FromJSON HealthStatus
-
-
-type HealthcheckApi =
-  "healthcheck" :> Get '[JSON] HealthStatus
-
-healthcheckApi :: Proxy HealthcheckApi
-healthcheckApi = Proxy
-
+import BlockchainWeb (HealthCheck(..), HealthStatus(..), getHealthCheck)
 
 main :: IO ()
 main = do
@@ -40,15 +18,20 @@ main = do
         setPort port $
         setBeforeMainLoop (hPutStrLn stderr ("listening on port " ++ show port)) $
         defaultSettings
-  runSettings settings =<< mkApp
+  runSettings settings =<< makeApplication
 
 
-mkApp :: IO Application
-mkApp = return $ serve healthcheckApi server
+makeApplication :: IO Application
+makeApplication = return $ serve healthcheckApi server
 
 server :: Server HealthcheckApi
-server =
-  getHealthcheck
+server = liftIO getHealthCheck
 
-getHealthcheck :: Handler HealthStatus
-getHealthcheck = return $ HealthStatus OK
+--
+-- Healthcheck
+--
+type HealthcheckApi =
+  "healthcheck" :> Get '[JSON] HealthCheck
+
+healthcheckApi :: Proxy HealthcheckApi
+healthcheckApi = Proxy
