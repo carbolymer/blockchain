@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE OverloadedStrings #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Blockchain
@@ -20,27 +22,38 @@ module  Blockchain (
   , addNewBlock
 
   , calculateProofOfWork
+  , sha256Hash
   , calculateHash
   , getLength
   , isValidProof
   , newTransaction
 ) where
 
-import Control.Monad.State (State, get, put, modify)
+import           Control.Monad.State (State, get, put, modify)
 import qualified Crypto.Hash.SHA256 as SHA256
+import qualified Data.Aeson as A
+import qualified Data.Aeson.Types as A
+import           Data.Aeson (FromJSON(parseJSON), ToJSON(toJSON))
 import qualified Data.ByteString as BS
-import Data.ByteString.Char8 (pack)
-import Data.Maybe (fromMaybe)
-import Data.Text (Text)
-import Data.Time.Clock (UTCTime(UTCTime), secondsToDiffTime)
-import Data.Time.Calendar (fromGregorian)
+import qualified Data.ByteString.Base16 as B16
+import qualified Data.ByteString.Lazy as BSL
+import           Data.ByteString.Char8 (pack)
+import           Data.Maybe (fromMaybe)
+import           Data.Text (Text)
+import qualified Data.Text.Encoding as E
+import           Data.Time.Clock (UTCTime(UTCTime), secondsToDiffTime)
+import           Data.Time.Calendar (fromGregorian)
+import           GHC.Generics (Generic)
 
 
 -- | Current state of the blockchain. Contains transactions and list of blocks
 data Blockchain = Blockchain {
   currentTransactions     :: ![Transaction],  -- ^ Current transactions (to be included in the next block)
   blocks                  :: ![Block]         -- ^ The list of valid blocks
-} deriving (Show, Eq)
+} deriving (Show, Eq, Generic)
+
+instance ToJSON Blockchain
+instance FromJSON Blockchain
 
 
 -- | A building block of the blockchain
@@ -50,7 +63,18 @@ data Block = Block {
   timestamp       :: !UTCTime,        -- ^ Block creation time
   transactions    :: ![Transaction],  -- ^ List of transactions within the block
   proof           :: !Int             -- ^ Proof of work
-} deriving (Show, Eq)
+} deriving (Show, Eq, Generic)
+
+instance ToJSON Block
+instance FromJSON Block
+
+instance ToJSON BS.ByteString where
+  toJSON = toJSON . E.decodeUtf8
+
+instance FromJSON BS.ByteString where
+  parseJSON (A.String v) = return $ E.encodeUtf8 v
+  parseJSON invalid = A.typeMismatch "ByteString" invalid
+
 
 
 -- | Represents single transaction between two adresses
@@ -58,7 +82,10 @@ data Transaction = Transaction {
   sender      :: !Text,   -- ^ Sender address
   recipient   :: !Text,   -- ^ Recipient address
   amount      :: !Int     -- ^ Transferred amount
-} deriving (Show, Eq)
+} deriving (Show, Eq, Generic)
+
+instance ToJSON Transaction
+instance FromJSON Transaction
 
 
 -- | Creates new blockchain with the genesis block
@@ -75,7 +102,7 @@ getLength = length <$> blocks <$> get
 genesisBlock :: Block
 genesisBlock = Block {
   index = 0,
-  previousHash = pack "1",
+  previousHash = "1",
   timestamp = UTCTime (fromGregorian 2017 10 1) (secondsToDiffTime 0),
   transactions = [],
   proof = 100
@@ -129,16 +156,21 @@ addNewBlock newBlockProof previousBlockHash creationTime = do
       return Nothing
 
 
+-- | Calculates SHA256 hash of the provided argument
+sha256Hash :: BS.ByteString -> BS.ByteString
+sha256Hash = B16.encode . SHA256.hash
+
+
 -- | Calculates SHA256 hash of the block
--- TODO replace this with JSON serialization with ordered keys, instead of show
+-- TODO make sure keys are ordered (currently they are *not*)
 calculateHash :: Block -> BS.ByteString
-calculateHash = SHA256.hash . pack . show
+calculateHash = sha256Hash . pack . show
 
 -- | Checks if the proof of work for the previous block is valid. Computationally intensive.
 isValidProof :: BS.ByteString -- ^ Previous block hash
              -> Int           -- ^ Proof of work
              -> Bool          -- ^ `True` if proof is valid, `False` otherwise
-isValidProof blockHash proof = BS.take 3 (SHA256.hash guess) == pack "000"
+isValidProof blockHash proof = BS.take 5 (sha256Hash guess) == pack "00000"
   where guess = blockHash `BS.append` pack (show proof)
 
 
@@ -149,4 +181,3 @@ calculateProofOfWork blockHash = calculateProofOfWork_ 0
     calculateProofOfWork_ guess
       | isValidProof blockHash guess  = guess
       | otherwise                     = calculateProofOfWork_ (guess + 1)
-

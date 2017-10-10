@@ -18,13 +18,17 @@
 -----------------------------------------------------------------------------
 
 module BlockchainWeb (
-    HealthCheck(..)
+    BlockchainWebService(..)
+  , HealthCheck(..)
   , HealthStatus(..)
-  , getHealthCheck
+  , Node(..) -- temporary
+  , newBlockchainWebServiceHandle
 ) where
 
 import Data.Aeson (FromJSON, ToJSON)
 import GHC.Generics (Generic)
+
+import Blockchain (Blockchain(..), Transaction(..))
 
 data HealthStatus = OK | NOK deriving (Eq, Show, Generic)
 
@@ -38,5 +42,27 @@ data HealthCheck = HealthCheck {
 instance ToJSON HealthCheck
 instance FromJSON HealthCheck
 
-getHealthCheck :: IO HealthCheck
-getHealthCheck = return $ HealthCheck OK
+data Node = Node deriving (Show, Eq, Generic)
+
+instance ToJSON Node
+instance FromJSON Node
+
+data BlockchainWebService = BlockchainWebService {
+    getHealthCheck :: IO HealthCheck
+  , newTransaction :: Transaction -> IO ()
+  , mineBlock :: IO ()
+  , getBlockchain :: IO Blockchain
+  , registerNodes :: [Node] -> IO ()
+  , resolveNodes :: IO ()
+}
+
+newBlockchainWebServiceHandle :: Blockchain -> IO BlockchainWebService
+newBlockchainWebServiceHandle blockchain = do
+  return BlockchainWebService {
+    getHealthCheck = return $ HealthCheck OK,
+    newTransaction = \transaction -> return (),
+    mineBlock = return (),
+    getBlockchain = return blockchain,
+    registerNodes = \_ -> return (),
+    resolveNodes = return ()
+  }
