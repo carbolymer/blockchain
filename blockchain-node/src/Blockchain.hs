@@ -6,7 +6,6 @@
 -- Copyright   :  (c) carbolymer
 -- License     :  Apache-2.0
 --
--- Maintainer  :  libraries@haskell.org
 -- Stability   :  experimental
 -- Portability :  POSIX
 --
@@ -15,21 +14,31 @@
 -----------------------------------------------------------------------------
 
 module  Blockchain (
-    Blockchain(..)
+    BlockchainApp
+  , execApp
+  , evalApp
+  , runApp
+
+  , Blockchain(..)
   , Block(..)
   , Transaction(..)
   , newBlockchain
   , addNewBlock
+  , mineNewBlock
 
   , calculateProofOfWork
   , sha256Hash
   , calculateHash
   , getLength
   , isValidProof
+  , addTransaction
   , newTransaction
 ) where
 
-import           Control.Monad.State (State, get, put, modify)
+
+import           Control.Monad.State (get, put, modify)
+import           Control.Monad.RWS (RWS, evalRWS, execRWS, runRWS)
+import           Control.Monad.Reader (ask)
 import qualified Crypto.Hash.SHA256 as SHA256
 import qualified Data.Aeson as A
 import qualified Data.Aeson.Types as A
@@ -45,6 +54,33 @@ import           Data.Time.Clock (UTCTime(UTCTime), secondsToDiffTime)
 import           Data.Time.Calendar (fromGregorian)
 import           GHC.Generics (Generic)
 
+import           BlockchainConfig (BlockchainConfig(..))
+
+
+-- | Blockchain application environment
+type BlockchainApp = RWS BlockchainConfig () Blockchain
+
+-- | Evaluates computation over an application, and returns final state
+execApp :: BlockchainConfig -- ^ config
+        -> BlockchainApp a  -- ^ RWS computation
+        -> Blockchain       -- ^ a blockchain state
+        -> Blockchain       -- ^ final state
+execApp config blockchainApp  blockchain = fst $ execRWS blockchainApp config blockchain
+
+-- | Evaluates computation over an application, and returns final value
+evalApp :: BlockchainConfig -- ^ config
+        -> BlockchainApp a  -- ^ RWS computation
+        -> Blockchain       -- ^ a blockchain state
+        -> a                -- ^ final value
+evalApp config blockchainApp blockchain = fst $ evalRWS blockchainApp config blockchain
+
+-- | Evaluates computation over an application, and returns final value
+runApp :: BlockchainConfig -- ^ config
+       -> BlockchainApp a  -- ^ RWS computation
+       -> Blockchain       -- ^ a blockchain state
+       -> (a, Blockchain)  -- ^ final value and blockchain
+runApp config blockchainApp blockchain = (result, newBlockchain)
+   where (result, newBlockchain, _) = runRWS blockchainApp config blockchain
 
 -- | Current state of the blockchain. Contains transactions and list of blocks
 data Blockchain = Blockchain {
@@ -76,7 +112,6 @@ instance FromJSON BS.ByteString where
   parseJSON invalid = A.typeMismatch "ByteString" invalid
 
 
-
 -- | Represents single transaction between two adresses
 data Transaction = Transaction {
   sender      :: !Text,   -- ^ Sender address
@@ -94,7 +129,7 @@ newBlockchain = Blockchain [] [genesisBlock]
 
 
 -- | Returns current length of the blockchain
-getLength :: State Blockchain Int
+getLength :: BlockchainApp Int
 getLength = length <$> blocks <$> get
 
 
@@ -113,17 +148,23 @@ genesisBlock = Block {
 newTransaction :: Text                  -- ^ Sender address
                -> Text                  -- ^ Recipient address
                -> Int                   -- ^ Transfer amount
-               -> State Blockchain Int  -- ^ Blockchain along with the index of the next-to-be-mined block
-newTransaction sender recipient amount = do
+               -> BlockchainApp Int     -- ^ Blockchain along with the index of the next-to-be-mined block
+newTransaction sender recipient amount = addTransaction $ Transaction sender recipient amount
+
+
+-- | Adds new transaction to the transactions list, which will be added to the next block
+-- returns blockchain along with the index of the next-to-be-mined block
+addTransaction :: Transaction -> BlockchainApp Int
+addTransaction transaction = do
   blockchain <- get
   let transactions = currentTransactions blockchain
-      newTransactions = transactions ++ [Transaction sender recipient amount]
+      newTransactions = transactions ++ [transaction]
   put blockchain { currentTransactions = newTransactions}
   getLength
 
 
 -- | Returns the last block from the blockchain
-getLastBlock :: State Blockchain Block
+getLastBlock :: BlockchainApp Block
 getLastBlock = last <$> blocks <$> get
 
 
@@ -131,12 +172,13 @@ getLastBlock = last <$> blocks <$> get
 addNewBlock :: Int                            -- ^ Proof of work, must be valid
             -> Maybe BS.ByteString            -- ^ Optional hash of the previous block, if not provided, will be computed
             -> UTCTime                        -- ^ Creation time
-            -> State Blockchain (Maybe Block) -- ^ Modified blockchain and new block if the proof is valid, otherwise `Nothing`
+            -> BlockchainApp (Maybe Block)    -- ^ Modified blockchain and new block if the proof is valid, otherwise `Nothing`
 addNewBlock newBlockProof previousBlockHash creationTime = do
   lastBlockCalculatedHash <- calculateHash <$> getLastBlock
+  difficulty <- miningDifficulty <$> ask
   let lastBlockHash = fromMaybe lastBlockCalculatedHash previousBlockHash
 
-  if isValidProof lastBlockHash newBlockProof then do
+  if isValidProof lastBlockHash newBlockProof difficulty then do
       blockchain <- get
       newBlockIndex <- getLength
       let newBlock = Block {
@@ -156,28 +198,53 @@ addNewBlock newBlockProof previousBlockHash creationTime = do
       return Nothing
 
 
+-- | Mines new block in the blockchain
+mineNewBlock :: UTCTime             -- ^ Creation time
+             -> BlockchainApp Block -- ^ Modified blockchain and the new block
+mineNewBlock creationTime = do
+  lastBlockHash <- calculateHash <$> getLastBlock
+  difficulty <- miningDifficulty <$> ask
+  let proofOfWork = calculateProofOfWork lastBlockHash difficulty
+  blockchain <- get
+  newBlockIndex <- getLength
+  let newBlock = Block {
+    index = newBlockIndex,
+    previousHash = lastBlockHash,
+    timestamp = creationTime,
+    transactions = currentTransactions blockchain,
+    proof = proofOfWork
+  }
+  -- update state
+  put blockchain {
+    currentTransactions = [],
+    blocks = (blocks blockchain) ++ [newBlock]
+  }
+  return newBlock
+
+
 -- | Calculates SHA256 hash of the provided argument
 sha256Hash :: BS.ByteString -> BS.ByteString
 sha256Hash = B16.encode . SHA256.hash
 
 
 -- | Calculates SHA256 hash of the block
--- TODO make sure keys are ordered (currently they are *not*)
 calculateHash :: Block -> BS.ByteString
 calculateHash = sha256Hash . pack . show
 
 -- | Checks if the proof of work for the previous block is valid. Computationally intensive.
 isValidProof :: BS.ByteString -- ^ Previous block hash
              -> Int           -- ^ Proof of work
+             -> Int           -- ^ Difficulty
              -> Bool          -- ^ `True` if proof is valid, `False` otherwise
-isValidProof blockHash proof = BS.take 5 (sha256Hash guess) == pack "00000"
+isValidProof blockHash proof difficulty = BS.take difficulty (sha256Hash guess) == pattern
   where guess = blockHash `BS.append` pack (show proof)
+        pattern = pack $ replicate difficulty '0'
 
 
--- | Calculates Proof of Work for the provided block hash
-calculateProofOfWork :: BS.ByteString -> Int
-calculateProofOfWork blockHash = calculateProofOfWork_ 0
+-- | Calculates Proof of Work for the provided block hash and mining difficulty
+calculateProofOfWork :: BS.ByteString -> Int -> Int
+calculateProofOfWork blockHash difficulty = calculateProofOfWork_ 0
   where
     calculateProofOfWork_ guess
-      | isValidProof blockHash guess  = guess
-      | otherwise                     = calculateProofOfWork_ (guess + 1)
+      | isValidProof blockHash guess difficulty = guess
+      | otherwise                                     = calculateProofOfWork_ (guess + 1)

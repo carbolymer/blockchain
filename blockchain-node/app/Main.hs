@@ -8,40 +8,34 @@
 module Main where
 
 import Control.Monad.IO.Class (liftIO)
-import Control.Monad.State (execState)
 import Data.Function ((&))
-import Data.Time (getCurrentTime)
 import Network.Wai.Handler.Warp (defaultSettings, runSettings, setBeforeMainLoop, setPort)
 import Servant ((:>), (:<|>)(..), Application, Get, Handler, JSON, NoContent(..), Post, Proxy(..), ReqBody, Server, serve)
 import System.IO (hPutStrLn, stderr)
 
-import Blockchain (Blockchain(..), Transaction(..), addNewBlock, calculateHash, calculateProofOfWork, newBlockchain)
-import qualified Blockchain as B (newTransaction)
-import BlockchainWeb (BlockchainWebService(..), HealthCheck(..), Node, newBlockchainWebServiceHandle)
+import Blockchain (Block, Transaction, newBlockchain)
+import BlockchainConfig (BlockchainConfig(..), defaultConfig)
+import BlockchainWeb (BlockchainWebService(..), HealthCheck(..), Node, StatusMessage, newBlockchainWebServiceHandle)
 
 
-myBlockchain :: IO Blockchain
-myBlockchain = do
-  currentTime <- getCurrentTime
-  let blockchain = execState (B.newTransaction "sender" "recipient" 1) newBlockchain
-      proof = calculateProofOfWork $ calculateHash $ last (blocks blockchain)
-  return $ execState (addNewBlock proof Nothing currentTime) blockchain
+config :: BlockchainConfig
+config = defaultConfig
 
+blockchainWebService :: IO BlockchainWebService
+blockchainWebService = newBlockchainWebServiceHandle config newBlockchain
 
 main :: IO ()
 main = do
-  let port = 8000
-      settings =
-        setPort port $
-        setBeforeMainLoop (hPutStrLn stderr ("listening on port " ++ show port)) $
+  let settings =
+        setPort (httpPort config) $
+        setBeforeMainLoop (hPutStrLn stderr ("listening on port " ++ show (httpPort config))) $
         defaultSettings
   runSettings settings =<< makeApplication
 
 
 makeApplication :: IO Application
 makeApplication = do
-  bc <- myBlockchain
-  bws <- newBlockchainWebServiceHandle bc
+  bws <- blockchainWebService
   return $ serve httpApi (server bws)
 
 
@@ -51,11 +45,11 @@ httpApi = Proxy
 
 type HttpApi = "healthcheck" :> Get '[JSON] HealthCheck
           -- new transaction
-          :<|> "transactions" :> "new" :> ReqBody '[JSON] Transaction :>  Post '[JSON] NoContent
+          :<|> "transactions" :> "new" :> ReqBody '[JSON] Transaction :>  Post '[JSON] StatusMessage
           -- mines a new block
-          :<|> "mine" :> Post '[JSON] NoContent
+          :<|> "mine" :> Post '[JSON] Block
           -- returns whole blochchain
-          :<|> "chain" :> Get '[JSON] Blockchain
+          :<|> "chain" :> Get '[JSON] [Block]
           -- accepts a list of new nodes
           :<|> "nodes" :> "register" :> ReqBody '[JSON] [Node] :> Post '[JSON] NoContent
           -- checks and sets the correct chain in the current node
