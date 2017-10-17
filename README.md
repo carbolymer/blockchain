@@ -1,6 +1,6 @@
 # Blockchain
 
-Just a sample implementation of the blockchain from the article: https://hackernoon.com/learn-blockchains-by-building-one-117428612f46
+Just a simple implementation of the blockchain from the article: https://hackernoon.com/learn-blockchains-by-building-one-117428612f46
 
 ## How to run
 
@@ -24,6 +24,12 @@ The application is listening on `http://localhost:8000/` and the following endpo
  * `POST /nodes/resolve` queries all nodes, and checks if this one has correct chain
 
 
+## Known issues
+
+* The miner holds lock over the *whole* `Blockchain` datatastructure, so it is inaccessible for other endpoints and vice versa
+* The last block in the chain is not secured by hash, so it can be modified freely
+
+
 ## TODO
 * [ ] Docker container with the binary
-* [ ] Multinode communication
+* [ ] Registering and resolving nodes

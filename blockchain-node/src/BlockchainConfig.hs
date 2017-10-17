@@ -15,17 +15,21 @@ module BlockchainConfig where
 
 -- | The settings data structure
 data BlockchainConfig = BlockchainConfig {
-  httpPort :: Int,        -- ^ HTTP listening port
-  miningDifficulty :: Int -- ^ mining difficulty
+  httpPort :: Int,          -- ^ HTTP listening port
+  miningDifficulty :: Int,  -- ^ mining difficulty
+  miningReward :: Double
+
 } deriving (Eq, Show)
 
 -- | Default config for the application
 --
 -- > httpPort = 8000
 -- > miningDifficulty = 5
+-- > miningReward = 1
 --
 defaultConfig :: BlockchainConfig
 defaultConfig = BlockchainConfig {
   httpPort = 8000,
-  miningDifficulty = 5
+  miningDifficulty = 5,
+  miningReward = 1
 }

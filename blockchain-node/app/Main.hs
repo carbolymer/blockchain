@@ -22,7 +22,7 @@ config :: BlockchainConfig
 config = defaultConfig
 
 blockchainWebService :: IO BlockchainWebService
-blockchainWebService = newBlockchainWebServiceHandle config newBlockchain
+blockchainWebService = newBlockchain >>= (newBlockchainWebServiceHandle config)
 
 main :: IO ()
 main = do

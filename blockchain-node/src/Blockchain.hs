@@ -14,25 +14,30 @@
 -----------------------------------------------------------------------------
 
 module  Blockchain (
+  -- * Blockchain Application execution functions
     BlockchainApp
   , execApp
   , evalApp
   , runApp
 
+  -- * Blockchain data model
+  -- ** Model
   , Blockchain(..)
   , Block(..)
   , Transaction(..)
+  -- ** Constructor functions
   , newBlockchain
   , addNewBlock
   , mineNewBlock
-
-  , calculateProofOfWork
-  , sha256Hash
-  , calculateHash
-  , getLength
-  , isValidProof
   , addTransaction
   , newTransaction
+
+  -- * Utility functions
+  , getLength
+  , calculateProofOfWork
+  , isValidProof
+  , calculateHash
+  , sha256Hash
 ) where
 
 
@@ -48,11 +53,13 @@ import qualified Data.ByteString.Base16 as B16
 import qualified Data.ByteString.Lazy as BSL
 import           Data.ByteString.Char8 (pack)
 import           Data.Maybe (fromMaybe)
-import           Data.Text (Text)
+import           Data.Text (Text, replace)
 import qualified Data.Text.Encoding as E
 import           Data.Time.Clock (UTCTime(UTCTime), secondsToDiffTime)
 import           Data.Time.Calendar (fromGregorian)
+import qualified Data.UUID as U
 import           GHC.Generics (Generic)
+import           System.Random (randomIO)
 
 import           BlockchainConfig (BlockchainConfig(..))
 
@@ -82,10 +89,11 @@ runApp :: BlockchainConfig -- ^ config
 runApp config blockchainApp blockchain = (result, newBlockchain)
    where (result, newBlockchain, _) = runRWS blockchainApp config blockchain
 
--- | Current state of the blockchain. Contains transactions and list of blocks
+-- | Current state of the node.
 data Blockchain = Blockchain {
   currentTransactions     :: ![Transaction],  -- ^ Current transactions (to be included in the next block)
-  blocks                  :: ![Block]         -- ^ The list of valid blocks
+  blocks                  :: ![Block],        -- ^ The list of valid blocks
+  uuid                    :: !Text
 } deriving (Show, Eq, Generic)
 
 instance ToJSON Blockchain
@@ -116,7 +124,7 @@ instance FromJSON BS.ByteString where
 data Transaction = Transaction {
   sender      :: !Text,   -- ^ Sender address
   recipient   :: !Text,   -- ^ Recipient address
-  amount      :: !Int     -- ^ Transferred amount
+  amount      :: !Double     -- ^ Transferred amount
 } deriving (Show, Eq, Generic)
 
 instance ToJSON Transaction
@@ -124,8 +132,10 @@ instance FromJSON Transaction
 
 
 -- | Creates new blockchain with the genesis block
-newBlockchain :: Blockchain
-newBlockchain = Blockchain [] [genesisBlock]
+newBlockchain :: IO Blockchain
+newBlockchain = do
+  nodeUuid <- U.toText <$> (randomIO :: IO U.UUID)
+  return $ Blockchain [] [genesisBlock] (replace "-" "" nodeUuid)
 
 
 -- | Returns current length of the blockchain
@@ -147,7 +157,7 @@ genesisBlock = Block {
 -- | Adds new transaction to the transactions list, which will be added to the next block
 newTransaction :: Text                  -- ^ Sender address
                -> Text                  -- ^ Recipient address
-               -> Int                   -- ^ Transfer amount
+               -> Double                   -- ^ Transfer amount
                -> BlockchainApp Int     -- ^ Blockchain along with the index of the next-to-be-mined block
 newTransaction sender recipient amount = addTransaction $ Transaction sender recipient amount
 
@@ -168,6 +178,7 @@ getLastBlock :: BlockchainApp Block
 getLastBlock = last <$> blocks <$> get
 
 
+{-# DEPRECATED addNewBlock "Use `mineNewBlock` instead" #-}
 -- | Adds new block to the blockchain
 addNewBlock :: Int                            -- ^ Proof of work, must be valid
             -> Maybe BS.ByteString            -- ^ Optional hash of the previous block, if not provided, will be computed
@@ -207,11 +218,12 @@ mineNewBlock creationTime = do
   let proofOfWork = calculateProofOfWork lastBlockHash difficulty
   blockchain <- get
   newBlockIndex <- getLength
+  rewardTransaction <- getMiningReward creationTime
   let newBlock = Block {
     index = newBlockIndex,
     previousHash = lastBlockHash,
     timestamp = creationTime,
-    transactions = currentTransactions blockchain,
+    transactions = (currentTransactions blockchain) ++ [rewardTransaction],
     proof = proofOfWork
   }
   -- update state
@@ -220,6 +232,14 @@ mineNewBlock creationTime = do
     blocks = (blocks blockchain) ++ [newBlock]
   }
   return newBlock
+
+
+-- | Returns transaction with the mining reward assigned to the current node
+getMiningReward :: UTCTime -> BlockchainApp Transaction
+getMiningReward time = do
+  reward <- miningReward <$> ask
+  recipientAddress <- uuid <$> get
+  return $ Transaction "0" recipientAddress reward
 
 
 -- | Calculates SHA256 hash of the provided argument
@@ -247,4 +267,4 @@ calculateProofOfWork blockHash difficulty = calculateProofOfWork_ 0
   where
     calculateProofOfWork_ guess
       | isValidProof blockHash guess difficulty = guess
-      | otherwise                                     = calculateProofOfWork_ (guess + 1)
+      | otherwise                               = calculateProofOfWork_ (guess + 1)
