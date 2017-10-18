@@ -27,7 +27,6 @@ The application is listening on `http://localhost:8000/` and the following endpo
 ## Known issues
 
 * The miner holds lock over the *whole* `Blockchain` datatastructure, so it is inaccessible for other endpoints and vice versa
-* The last block in the chain is not secured by hash, so it can be modified freely
 
 
 ## TODO

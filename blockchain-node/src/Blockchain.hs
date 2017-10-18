@@ -25,9 +25,9 @@ module  Blockchain (
   , Blockchain(..)
   , Block(..)
   , Transaction(..)
+
   -- ** Constructor functions
   , newBlockchain
-  , addNewBlock
   , mineNewBlock
   , addTransaction
   , newTransaction
@@ -35,12 +35,13 @@ module  Blockchain (
   -- * Utility functions
   , getLength
   , calculateProofOfWork
-  , isValidProof
+  , isValidBlock
   , calculateHash
   , sha256Hash
 ) where
 
 
+import           Control.Concurrent (threadDelay)
 import           Control.Monad.State (get, put, modify)
 import           Control.Monad.RWS (RWS, evalRWS, execRWS, runRWS)
 import           Control.Monad.Reader (ask)
@@ -178,44 +179,11 @@ getLastBlock :: BlockchainApp Block
 getLastBlock = last <$> blocks <$> get
 
 
-{-# DEPRECATED addNewBlock "Use `mineNewBlock` instead" #-}
--- | Adds new block to the blockchain
-addNewBlock :: Int                            -- ^ Proof of work, must be valid
-            -> Maybe BS.ByteString            -- ^ Optional hash of the previous block, if not provided, will be computed
-            -> UTCTime                        -- ^ Creation time
-            -> BlockchainApp (Maybe Block)    -- ^ Modified blockchain and new block if the proof is valid, otherwise `Nothing`
-addNewBlock newBlockProof previousBlockHash creationTime = do
-  lastBlockCalculatedHash <- calculateHash <$> getLastBlock
-  difficulty <- miningDifficulty <$> ask
-  let lastBlockHash = fromMaybe lastBlockCalculatedHash previousBlockHash
-
-  if isValidProof lastBlockHash newBlockProof difficulty then do
-      blockchain <- get
-      newBlockIndex <- getLength
-      let newBlock = Block {
-        index = newBlockIndex,
-        previousHash = lastBlockHash,
-        timestamp = creationTime,
-        transactions = currentTransactions blockchain,
-        proof = newBlockProof
-      }
-      -- update state
-      put blockchain {
-        currentTransactions = [],
-        blocks = (blocks blockchain) ++ [newBlock]
-      }
-      return $ Just newBlock
-    else
-      return Nothing
-
-
 -- | Mines new block in the blockchain
 mineNewBlock :: UTCTime             -- ^ Creation time
              -> BlockchainApp Block -- ^ Modified blockchain and the new block
 mineNewBlock creationTime = do
   lastBlockHash <- calculateHash <$> getLastBlock
-  difficulty <- miningDifficulty <$> ask
-  let proofOfWork = calculateProofOfWork lastBlockHash difficulty
   blockchain <- get
   newBlockIndex <- getLength
   rewardTransaction <- getMiningReward creationTime
@@ -224,12 +192,16 @@ mineNewBlock creationTime = do
     previousHash = lastBlockHash,
     timestamp = creationTime,
     transactions = (currentTransactions blockchain) ++ [rewardTransaction],
-    proof = proofOfWork
+    proof = 0 -- initial value, correct one will be calculated later
   }
+
+  difficulty <- miningDifficulty <$> ask
+  let validBlock = calculateProofOfWork newBlock difficulty
+
   -- update state
   put blockchain {
     currentTransactions = [],
-    blocks = (blocks blockchain) ++ [newBlock]
+    blocks = (blocks blockchain) ++ [validBlock]
   }
   return newBlock
 
@@ -251,20 +223,17 @@ sha256Hash = B16.encode . SHA256.hash
 calculateHash :: Block -> BS.ByteString
 calculateHash = sha256Hash . pack . show
 
--- | Checks if the proof of work for the previous block is valid. Computationally intensive.
-isValidProof :: BS.ByteString -- ^ Previous block hash
-             -> Int           -- ^ Proof of work
+-- | Checks if the block is valid
+isValidBlock :: Block         -- ^ Block to validate
              -> Int           -- ^ Difficulty
-             -> Bool          -- ^ `True` if proof is valid, `False` otherwise
-isValidProof blockHash proof difficulty = BS.take difficulty (sha256Hash guess) == pattern
-  where guess = blockHash `BS.append` pack (show proof)
-        pattern = pack $ replicate difficulty '0'
+             -> Bool          -- ^ `True` if the block is valid, `False` otherwise
+isValidBlock block difficulty = BS.take difficulty (calculateHash block) == pattern
+  where pattern = pack $ replicate difficulty '0'
 
 
--- | Calculates Proof of Work for the provided block hash and mining difficulty
-calculateProofOfWork :: BS.ByteString -> Int -> Int
-calculateProofOfWork blockHash difficulty = calculateProofOfWork_ 0
-  where
-    calculateProofOfWork_ guess
-      | isValidProof blockHash guess difficulty = guess
-      | otherwise                               = calculateProofOfWork_ (guess + 1)
+-- | Calculates Proof of Work for the provided block and mining difficulty. Returns the new valid block with the updated
+-- proof of work
+calculateProofOfWork :: Block -> Int -> Block
+calculateProofOfWork block difficulty
+      | isValidBlock block difficulty = block
+      | otherwise                     = calculateProofOfWork (block { proof = proof block + 1}) difficulty

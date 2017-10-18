@@ -1,11 +1,12 @@
-import Data.Maybe (fromJust)
 import Data.Time (getCurrentTime)
 import Test.Hspec
 
 import BlockchainConfig (BlockchainConfig(..), defaultConfig)
-import Blockchain (Blockchain(..), Block(..), addNewBlock, blocks, calculateHash, calculateProofOfWork, evalApp,
-      execApp, getLength, newBlockchain, newTransaction, runApp, sha256Hash)
+import Blockchain (Block(..), evalApp, getLength, mineNewBlock, newBlockchain, newTransaction, runApp,
+    sha256Hash)
 
+testConfig :: BlockchainConfig
+testConfig = defaultConfig { miningDifficulty = 1 }
 
 
 main :: IO ()
@@ -20,20 +21,18 @@ main = hspec $ do
   describe "Transactions" $ do
     it "adds a transaction, returned to-be-mined block index is equal to the blockchain length" $ do
       createdBlockchain <- newBlockchain
-      let (newBlockIndex, blockchain) = runApp defaultConfig (newTransaction "sender" "recipient" 1) createdBlockchain
-      let blockchainLength = evalApp defaultConfig getLength blockchain
+      let (newBlockIndex, blockchain) = runApp testConfig (newTransaction "sender" "recipient" 1) createdBlockchain
+          blockchainLength = evalApp testConfig getLength blockchain
       newBlockIndex `shouldBe` blockchainLength
 
   describe "Blocks" $ do
-    it "adds transaction to the blockchain, adds block, and verifies that block contains this transaction" $ do
+    it "adds transaction to the blockchain, mines new block block, and verifies that block contains this transaction" $ do
       currentTime <- getCurrentTime
       -- blockchain with 1 current transaction
       currentBlockchain <- newBlockchain
-      let blockchain = execApp defaultConfig (newTransaction "sender" "recipient" 1) currentBlockchain
-      let lastCurrentTransaction = last $ currentTransactions blockchain
-          proof = calculateProofOfWork (calculateHash $ last (blocks blockchain)) (miningDifficulty defaultConfig)
-          maybeNewBlock = evalApp defaultConfig (addNewBlock proof Nothing currentTime) blockchain
-      maybeNewBlock `shouldSatisfy` (not . (== Nothing))
-      let newBlock = fromJust maybeNewBlock
-      (length $ transactions newBlock) `shouldBe` 1
-      lastCurrentTransaction `shouldBe` (last $ transactions newBlock)
+      let (newBlock, blockchain) = runApp testConfig (createNewTransactionAndNewBlock currentTime) currentBlockchain
+      (length $ transactions newBlock) `shouldBe` 2
+      where
+        createNewTransactionAndNewBlock currentTime = do
+          newTransaction "sender" "recipient" 1
+          mineNewBlock currentTime
