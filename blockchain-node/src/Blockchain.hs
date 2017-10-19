@@ -42,8 +42,10 @@ module  Blockchain (
 
 
 import           Control.Concurrent (threadDelay)
+import           Control.Concurrent.STM (atomically)
+import           Control.Concurrent.STM.TVar (TVar, newTVarIO, modifyTVar', readTVarIO, readTVar, writeTVar)
 import           Control.Monad.State (get, put, modify)
-import           Control.Monad.RWS (RWS, evalRWS, execRWS, runRWS)
+import           Control.Monad.RWS (RWST, evalRWST, execRWST, liftIO, runRWST)
 import           Control.Monad.Reader (ask)
 import qualified Crypto.Hash.SHA256 as SHA256
 import qualified Data.Aeson as A
@@ -53,6 +55,7 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Base16 as B16
 import qualified Data.ByteString.Lazy as BSL
 import           Data.ByteString.Char8 (pack)
+import           Data.List ((\\))
 import           Data.Maybe (fromMaybe)
 import           Data.Text (Text, replace)
 import qualified Data.Text.Encoding as E
@@ -66,39 +69,38 @@ import           BlockchainConfig (BlockchainConfig(..))
 
 
 -- | Blockchain application environment
-type BlockchainApp = RWS BlockchainConfig () Blockchain
+-- TODO move Blockchain datatype into reader monad
+type BlockchainApp = RWST BlockchainConfig () Blockchain IO
 
 -- | Evaluates computation over an application, and returns final state
 execApp :: BlockchainConfig -- ^ config
         -> BlockchainApp a  -- ^ RWS computation
         -> Blockchain       -- ^ a blockchain state
-        -> Blockchain       -- ^ final state
-execApp config blockchainApp  blockchain = fst $ execRWS blockchainApp config blockchain
+        -> IO Blockchain    -- ^ final state
+execApp config blockchainApp  blockchain = fst <$> execRWST blockchainApp config blockchain
 
 -- | Evaluates computation over an application, and returns final value
 evalApp :: BlockchainConfig -- ^ config
         -> BlockchainApp a  -- ^ RWS computation
         -> Blockchain       -- ^ a blockchain state
-        -> a                -- ^ final value
-evalApp config blockchainApp blockchain = fst $ evalRWS blockchainApp config blockchain
+        -> IO a             -- ^ final value
+evalApp config blockchainApp blockchain = fst <$> evalRWST blockchainApp config blockchain
 
 -- | Evaluates computation over an application, and returns final value
-runApp :: BlockchainConfig -- ^ config
-       -> BlockchainApp a  -- ^ RWS computation
-       -> Blockchain       -- ^ a blockchain state
-       -> (a, Blockchain)  -- ^ final value and blockchain
-runApp config blockchainApp blockchain = (result, newBlockchain)
-   where (result, newBlockchain, _) = runRWS blockchainApp config blockchain
+runApp :: BlockchainConfig    -- ^ config
+       -> BlockchainApp a     -- ^ RWS computation
+       -> Blockchain          -- ^ a blockchain state
+       -> IO (a, Blockchain)  -- ^ final value and blockchain
+runApp config blockchainApp blockchain = do
+  (result, newBlockchain, _) <- runRWST blockchainApp config blockchain
+  return (result, newBlockchain)
 
 -- | Current state of the node.
 data Blockchain = Blockchain {
-  currentTransactions     :: ![Transaction],  -- ^ Current transactions (to be included in the next block)
-  blocks                  :: ![Block],        -- ^ The list of valid blocks
+  currentTransactions     :: TVar [Transaction],  -- ^ Current transactions (to be included in the next block)
+  blocks                  :: TVar [Block],        -- ^ The list of valid blocks
   uuid                    :: !Text
-} deriving (Show, Eq, Generic)
-
-instance ToJSON Blockchain
-instance FromJSON Blockchain
+} deriving (Eq)
 
 
 -- | A building block of the blockchain
@@ -136,12 +138,14 @@ instance FromJSON Transaction
 newBlockchain :: IO Blockchain
 newBlockchain = do
   nodeUuid <- U.toText <$> (randomIO :: IO U.UUID)
-  return $ Blockchain [] [genesisBlock] (replace "-" "" nodeUuid)
+  currentTransactions <- newTVarIO []
+  blocks <- newTVarIO [genesisBlock]
+  return $ Blockchain currentTransactions blocks (replace "-" "" nodeUuid)
 
 
 -- | Returns current length of the blockchain
 getLength :: BlockchainApp Int
-getLength = length <$> blocks <$> get
+getLength = liftIO =<< length <$$> readTVarIO <$> blocks <$> get
 
 
 -- | The first block in the blockchain
@@ -158,7 +162,7 @@ genesisBlock = Block {
 -- | Adds new transaction to the transactions list, which will be added to the next block
 newTransaction :: Text                  -- ^ Sender address
                -> Text                  -- ^ Recipient address
-               -> Double                   -- ^ Transfer amount
+               -> Double                -- ^ Transfer amount
                -> BlockchainApp Int     -- ^ Blockchain along with the index of the next-to-be-mined block
 newTransaction sender recipient amount = addTransaction $ Transaction sender recipient amount
 
@@ -167,16 +171,14 @@ newTransaction sender recipient amount = addTransaction $ Transaction sender rec
 -- returns blockchain along with the index of the next-to-be-mined block
 addTransaction :: Transaction -> BlockchainApp Int
 addTransaction transaction = do
-  blockchain <- get
-  let transactions = currentTransactions blockchain
-      newTransactions = transactions ++ [transaction]
-  put blockchain { currentTransactions = newTransactions}
+  transactions <- currentTransactions <$> get
+  liftIO $ atomically $ modifyTVar' transactions (++ [transaction])
   getLength
 
 
 -- | Returns the last block from the blockchain
 getLastBlock :: BlockchainApp Block
-getLastBlock = last <$> blocks <$> get
+getLastBlock = liftIO =<< last <$$> readTVarIO <$> blocks <$> get
 
 
 -- | Mines new block in the blockchain
@@ -185,25 +187,29 @@ mineNewBlock :: UTCTime             -- ^ Creation time
 mineNewBlock creationTime = do
   lastBlockHash <- calculateHash <$> getLastBlock
   blockchain <- get
+  transactions <- liftIO $ readTVarIO $ currentTransactions blockchain
   newBlockIndex <- getLength
   rewardTransaction <- getMiningReward creationTime
   let newBlock = Block {
     index = newBlockIndex,
     previousHash = lastBlockHash,
     timestamp = creationTime,
-    transactions = (currentTransactions blockchain) ++ [rewardTransaction],
+    transactions = transactions ++ [rewardTransaction],
     proof = 0 -- initial value, correct one will be calculated later
   }
-
+  liftIO $ putStrLn "Mining block..."
+  -- actual mining here
   difficulty <- miningDifficulty <$> ask
   let validBlock = calculateProofOfWork newBlock difficulty
+  liftIO $ putStrLn $ "Mined block, proof=" ++ (show $ proof validBlock)
 
-  -- update state
-  put blockchain {
-    currentTransactions = [],
-    blocks = (blocks blockchain) ++ [validBlock]
-  }
-  return newBlock
+  liftIO $ atomically $ do
+    -- remove transactions already in newly mined block
+    modifyTVar' (currentTransactions blockchain) (\\ transactions)
+    -- add  block to the chain
+    modifyTVar' (blocks blockchain) (++ [validBlock])
+
+  return validBlock
 
 
 -- | Returns transaction with the mining reward assigned to the current node
@@ -237,3 +243,7 @@ calculateProofOfWork :: Block -> Int -> Block
 calculateProofOfWork block difficulty
       | isValidBlock block difficulty = block
       | otherwise                     = calculateProofOfWork (block { proof = proof block + 1}) difficulty
+
+
+(<$$>) :: (Functor f, Functor g) => (a -> b) -> f (g a) -> f (g b)
+(<$$>) f g = (f <$>) <$> g

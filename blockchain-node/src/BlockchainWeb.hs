@@ -24,15 +24,14 @@ module BlockchainWeb (
   , newBlockchainWebServiceHandle
 ) where
 
-import Control.Concurrent.STM (atomically)
-import Control.Concurrent.STM.TVar (newTVarIO, modifyTVar', readTVarIO, readTVar, writeTVar)
+import Control.Concurrent.STM.TVar (readTVarIO)
 import Data.Aeson (FromJSON, ToJSON)
 import Data.Text (Text)
 import Data.Time (getCurrentTime)
 import GHC.Generics (Generic)
 
 import BlockchainConfig (BlockchainConfig)
-import Blockchain (Block(..), Blockchain(..), Transaction(..), addTransaction, execApp, runApp, mineNewBlock)
+import Blockchain (Block(..), Blockchain(..), Transaction(..), addTransaction, evalApp, runApp, mineNewBlock)
 
 
 data HealthStatus = OK | NOK deriving (Eq, Show, Generic)
@@ -70,26 +69,19 @@ data BlockchainWebService = BlockchainWebService {
 
 newBlockchainWebServiceHandle :: BlockchainConfig -> Blockchain -> IO BlockchainWebService
 newBlockchainWebServiceHandle cfg blockchain = do
-  blockchainTVar <- newTVarIO blockchain
+
   return BlockchainWebService {
     getHealthCheck = return $ HealthCheck OK,
 
     newTransaction = \transaction -> do
-      atomically $
-        -- if node is mining at this moment, this will block
-        modifyTVar' blockchainTVar $
-        execApp cfg (addTransaction transaction)
+      runApp cfg (addTransaction transaction) blockchain
       return $ StatusMessage "Transaction was addedd",
 
     mineBlock = do
       currentTime <- getCurrentTime
-      atomically $ do
-        blockchain <- readTVar blockchainTVar
-        let (newBlock, newBlockchain) = runApp cfg (mineNewBlock currentTime) blockchain
-        writeTVar blockchainTVar newBlockchain
-        return newBlock,
+      evalApp cfg (mineNewBlock currentTime) blockchain,
 
-    getBlockchain = blocks <$> readTVarIO blockchainTVar,
+    getBlockchain = readTVarIO $ blocks blockchain,
 
     registerNodes = \_ -> return (),
 

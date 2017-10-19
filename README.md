@@ -24,11 +24,6 @@ The application is listening on `http://localhost:8000/` and the following endpo
  * `POST /nodes/resolve` queries all nodes, and checks if this one has correct chain
 
 
-## Known issues
-
-* The miner holds lock over the *whole* `Blockchain` datatastructure, so it is inaccessible for other endpoints and vice versa
-
-
 ## TODO
 * [ ] Docker container with the binary
 * [ ] Registering and resolving nodes
