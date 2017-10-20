@@ -19,19 +19,20 @@ module BlockchainWeb (
     BlockchainWebService(..)
   , HealthCheck(..)
   , HealthStatus(..)
-  , Node(..) -- temporary
   , StatusMessage
   , newBlockchainWebServiceHandle
 ) where
 
-import Control.Concurrent.STM.TVar (readTVarIO)
-import Data.Aeson (FromJSON, ToJSON)
-import Data.Text (Text)
-import Data.Time (getCurrentTime)
-import GHC.Generics (Generic)
+import           Control.Concurrent.STM.TVar (readTVarIO)
+import           Data.Aeson (FromJSON, ToJSON)
+import qualified Data.Set as S
+import           Data.Text (Text)
+import           Data.Time (getCurrentTime)
+import           GHC.Generics (Generic)
 
 import BlockchainConfig (BlockchainConfig)
-import Blockchain ((<$$>), Block(..), Blockchain(..), Transaction(..), addTransaction, evalApp, runApp, mineNewBlock)
+import Blockchain ((<$$>), Block(..), Blockchain(..), Node(..), Transaction(..), addNodes, addTransaction, evalApp,
+    runApp, mineNewBlock)
 
 
 data HealthStatus = OK | NOK deriving (Eq, Show, Generic)
@@ -45,11 +46,6 @@ data HealthCheck = HealthCheck {
 
 instance ToJSON HealthCheck
 instance FromJSON HealthCheck
-
-data Node = Node deriving (Show, Eq, Generic)
-
-instance ToJSON Node
-instance FromJSON Node
 
 newtype StatusMessage = StatusMessage {
   message :: Text
@@ -65,8 +61,9 @@ data BlockchainWebService = BlockchainWebService {
   , getUnconfirmedTransactions :: IO [Transaction]
   , mineBlock :: IO Block
   , getBlockchain :: IO [Block]
-  , registerNodes :: [Node] -> IO ()
-  , resolveNodes :: IO ()
+  , getNodes :: IO [Node]
+  , registerNodes :: [Node] -> IO StatusMessage
+  , resolveNodes :: IO StatusMessage
 }
 
 newBlockchainWebServiceHandle :: BlockchainConfig -> Blockchain -> IO BlockchainWebService
@@ -89,7 +86,11 @@ newBlockchainWebServiceHandle cfg blockchain = do
 
     getBlockchain = readTVarIO $ blocks blockchain,
 
-    registerNodes = \_ -> return (),
+    getNodes = S.toList <$$> readTVarIO $ nodes blockchain,
 
-    resolveNodes = return ()
+    registerNodes = \nodes -> do
+      runApp cfg (addNodes nodes) blockchain
+      return $ StatusMessage "Nodes addes to nodes list",
+
+    resolveNodes = return $ StatusMessage "not implemented"
   }

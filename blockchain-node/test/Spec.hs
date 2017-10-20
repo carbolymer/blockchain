@@ -2,12 +2,10 @@ import Data.Time (getCurrentTime)
 import Test.Hspec
 
 import BlockchainConfig (BlockchainConfig(..), defaultConfig)
-import Blockchain (Block(..), evalApp, getLength, mineNewBlock, newBlockchain, newTransaction, runApp,
-    sha256Hash)
+import Blockchain (Block(..), evalApp, getLength, mineNewBlock, newBlockchain, newTransaction, runApp, sha256Hash)
 
 testConfig :: BlockchainConfig
-testConfig = defaultConfig { miningDifficulty = 1 }
-
+testConfig = defaultConfig { miningDifficulty = 2 }
 
 main :: IO ()
 main = hspec $ do
@@ -21,8 +19,8 @@ main = hspec $ do
   describe "Transactions" $ do
     it "adds a transaction, returned to-be-mined block index is equal to the blockchain length" $ do
       createdBlockchain <- newBlockchain
-      let (newBlockIndex, blockchain) = runApp testConfig (newTransaction "sender" "recipient" 1) createdBlockchain
-          blockchainLength = evalApp testConfig getLength blockchain
+      (newBlockIndex, blockchain) <- runApp testConfig (newTransaction "sender" "recipient" 1) createdBlockchain
+      blockchainLength <- evalApp testConfig getLength blockchain
       newBlockIndex `shouldBe` blockchainLength
 
   describe "Blocks" $ do
@@ -30,9 +28,9 @@ main = hspec $ do
       currentTime <- getCurrentTime
       -- blockchain with 1 current transaction
       currentBlockchain <- newBlockchain
-      let (newBlock, blockchain) = runApp testConfig (createNewTransactionAndNewBlock currentTime) currentBlockchain
+      let createNewTransactionAndNewBlock currentTime = do
+                    newTransaction "sender" "recipient" 1
+                    mineNewBlock currentTime
+      (newBlock, blockchain) <- runApp testConfig (createNewTransactionAndNewBlock currentTime) currentBlockchain
       (length $ transactions newBlock) `shouldBe` 2
-      where
-        createNewTransactionAndNewBlock currentTime = do
-          newTransaction "sender" "recipient" 1
-          mineNewBlock currentTime
+

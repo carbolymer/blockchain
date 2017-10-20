@@ -25,6 +25,7 @@ module  Blockchain (
   , Blockchain(..)
   , Block(..)
   , Transaction(..)
+  , Node(..)
 
   -- ** Constructor functions
   , newBlockchain
@@ -33,9 +34,12 @@ module  Blockchain (
   , newTransaction
 
   -- * Utility functions
+  , addNodes
   , getLength
   , calculateProofOfWork
   , isValidBlock
+  , isValidChain
+  , isValidTransaction
   , calculateHash
   , sha256Hash
   , (<$$>)
@@ -54,20 +58,25 @@ import qualified Data.Aeson.Types as A
 import           Data.Aeson (FromJSON(parseJSON), ToJSON(toJSON))
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Base16 as B16
-import qualified Data.ByteString.Lazy as BSL
 import           Data.ByteString.Char8 (pack)
+import           Data.Foldable (foldr')
 import           Data.List ((\\))
 import           Data.Maybe (fromMaybe)
+import qualified Data.Set as S
 import           Data.Text (Text, replace)
 import qualified Data.Text.Encoding as E
+import           Data.Time (getZonedTime)
 import           Data.Time.Clock (UTCTime(UTCTime), secondsToDiffTime)
 import           Data.Time.Calendar (fromGregorian)
 import qualified Data.UUID as U
 import           GHC.Generics (Generic)
+import           Prelude hiding (id)
 import           System.Random (randomIO)
 
 import           BlockchainConfig (BlockchainConfig(..))
+import           Logger
 
+(infoL, errorL) = getLogger "Blockchain"
 
 -- | Blockchain application environment
 -- TODO move Blockchain datatype into reader monad
@@ -96,11 +105,13 @@ runApp config blockchainApp blockchain = do
   (result, newBlockchain, _) <- runRWST blockchainApp config blockchain
   return (result, newBlockchain)
 
+
 -- | Current state of the node.
 data Blockchain = Blockchain {
-  currentTransactions     :: TVar [Transaction],  -- ^ Current transactions (to be included in the next block)
-  blocks                  :: TVar [Block],        -- ^ The list of valid blocks
-  uuid                    :: !Text
+  currentTransactions :: TVar [Transaction],  -- ^ Current transactions (to be included in the next block)
+  blocks              :: TVar [Block],        -- ^ The list of valid blocks
+  uuid                :: !Text,               -- ^ This node UUID
+  nodes               :: TVar (S.Set Node)     -- ^ Nodes set
 } deriving (Eq)
 
 
@@ -134,6 +145,18 @@ data Transaction = Transaction {
 instance ToJSON Transaction
 instance FromJSON Transaction
 
+-- | Represents single blockchain node
+data Node = Node {
+  id  :: !Text, -- ^ UUID of the node
+  url :: !Text  -- ^ URL under which the node is accessible
+} deriving (Ord, Show, Generic)
+
+instance ToJSON Node
+instance FromJSON Node
+instance Eq Node where
+  -- id is unique
+  a == b = (id a) == (id b)
+
 
 -- | Creates new blockchain with the genesis block
 newBlockchain :: IO Blockchain
@@ -141,7 +164,8 @@ newBlockchain = do
   nodeUuid <- U.toText <$> (randomIO :: IO U.UUID)
   currentTransactions <- newTVarIO []
   blocks <- newTVarIO [genesisBlock]
-  return $ Blockchain currentTransactions blocks (replace "-" "" nodeUuid)
+  nodes <- newTVarIO S.empty
+  return $ Blockchain currentTransactions blocks (replace "-" "" nodeUuid) nodes
 
 
 -- | Returns current length of the blockchain
@@ -174,6 +198,7 @@ addTransaction :: Transaction -> BlockchainApp Int
 addTransaction transaction = do
   transactions <- currentTransactions <$> get
   liftIO $ atomically $ modifyTVar' transactions (++ [transaction])
+  infoL $ "added transaction: " ++ (show transaction)
   getLength
 
 
@@ -198,11 +223,13 @@ mineNewBlock creationTime = do
     transactions = transactions ++ [rewardTransaction],
     proof = 0 -- initial value, correct one will be calculated later
   }
-  liftIO $ putStrLn "Mining block..."
+
+  infoL "Mining block..."
   -- actual mining here
   difficulty <- miningDifficulty <$> ask
   let validBlock = calculateProofOfWork newBlock difficulty
-  liftIO $ putStrLn $ "Mined block, proof=" ++ (show $ proof validBlock)
+  -- seq is necessary for correct timestamp in log here
+  (proof validBlock) `seq` infoL $ "Mined block, proof=" ++ (show $ proof validBlock)
 
   liftIO $ atomically $ do
     -- remove transactions already in newly mined block
@@ -221,17 +248,29 @@ getMiningReward time = do
   return $ Transaction "0" recipientAddress reward
 
 
+-- | Adds nodes to the node list in the blockchain
+addNodes :: [Node] -> BlockchainApp ()
+addNodes nodesToAdd = do
+  blockchain <- get
+  --  do not allow to insert current node
+  let filteredNodes = filter ((/= uuid blockchain) . id) nodesToAdd
+  liftIO $ atomically $ modifyTVar' (nodes blockchain) $ \currentNodes -> do
+    foldr' S.insert currentNodes filteredNodes
+  infoL $ "added nodes: " ++ (show filteredNodes)
+
+
 -- | Calculates SHA256 hash of the provided argument
 sha256Hash :: BS.ByteString -> BS.ByteString
 sha256Hash = B16.encode . SHA256.hash
 
 
 -- | Calculates SHA256 hash of the block
-calculateHash :: Block -> BS.ByteString
+calculateHash :: (Show a) => a -> BS.ByteString
 calculateHash = sha256Hash . pack . show
 
+
 -- | Checks if the block is valid
-isValidBlock :: Block         -- ^ Block to validate
+isValidBlock :: (Show a) => a -- ^ Block to validate
              -> Int           -- ^ Difficulty
              -> Bool          -- ^ `True` if the block is valid, `False` otherwise
 isValidBlock block difficulty = BS.take difficulty (calculateHash block) == pattern
@@ -244,6 +283,23 @@ calculateProofOfWork :: Block -> Int -> Block
 calculateProofOfWork block difficulty
       | isValidBlock block difficulty = block
       | otherwise                     = calculateProofOfWork (block { proof = proof block + 1}) difficulty
+
+
+-- | Validates provided chain of blocks
+--
+-- * Checks if blocks have correct hashes
+-- * Validates all transactions in the blocks:
+--
+--     1. No negative account balance
+--     2. Only last transaction in the block contains reward from mining
+--
+isValidChain :: [Block] -> BlockchainApp Bool
+isValidChain = undefined
+
+
+-- | Validates transaction (that it does not produce negative amount)
+isValidTransaction :: Transaction -> BlockchainApp Bool
+isValidTransaction = undefined
 
 
 -- | Applies function to the double functor

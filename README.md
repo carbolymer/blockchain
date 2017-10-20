@@ -18,16 +18,17 @@ stack exec blockchain-node-exe
 ## HTTP Endpoints
 The application is listening on `http://localhost:8000/` and the following endpoints are available:
 
-| Path | Description | Sample request | Sample response
-|--|--|--|--
-| `GET /healthckeck` | returns health status of the node | | `{"health": "OK"}`
-| `GET /chain` | returns whole blockchain | |
-| `POST /transactions/new` | registers a new transaction | |
-| `GET /transactions/confirmed` | lists confirmed transactions | |
-| `GET /transactions/unconfirmed` | lists unconfirmed transactions | |
-| `POST /mine` | mines a new block | |
-| `POST /nodes/register` | accepts a list of new nodes | |
-| `POST /nodes/resolve` | queries all nodes, and checks if this one has correct chain | |
+| Path | Description
+|--|--
+| `GET /healthckeck` | returns health status of the node
+| `GET /chain` | returns whole blockchain
+| `POST /transactions/new` | registers a new transaction
+| `GET /transactions/confirmed` | lists confirmed transactions
+| `GET /transactions/unconfirmed` | lists unconfirmed transactions
+| `POST /mine` | mines a new block
+| `POST /nodes/all` | lists all nodes known to this one
+| `POST /nodes/register` | accepts a list of new nodes and add them to this one
+| `POST /nodes/resolve` | queries all nodes, and checks if this one has correct chain
 
 
 

@@ -18,10 +18,12 @@ library
   exposed-modules:     Blockchain
                      , BlockchainConfig
                      , BlockchainWeb
+                     , Logger
   build-depends:       base >= 4.7 && < 5
                      , aeson >= 1.2.2
                      , base16-bytestring >= 0.1.1
                      , bytestring >= 0.10.8
+                     , containers >= 0.5.7
                      , cryptohash-sha256 >= 0.11.100
                      , mtl >= 2.2.1
                      , random >= 1.1
@@ -38,6 +40,7 @@ executable blockchain-node-exe
   default-extensions:  OverloadedStrings
   build-depends:       base
                      , blockchain-node
+                     , containers >= 0.5.7
                      , mtl >= 2.2.1
                      , servant >= 0.11
                      , servant-server >= 0.11

@@ -11,12 +11,14 @@ import Control.Monad.IO.Class (liftIO)
 import Data.Function ((&))
 import Network.Wai.Handler.Warp (defaultSettings, runSettings, setBeforeMainLoop, setPort)
 import Servant ((:>), (:<|>)(..), Application, Get, Handler, JSON, NoContent(..), Post, Proxy(..), ReqBody, Server, serve)
-import System.IO (hPutStrLn, stderr)
 
-import Blockchain (Block, Transaction, newBlockchain)
+import Blockchain (Block, Node, Transaction, newBlockchain)
 import BlockchainConfig (BlockchainConfig(..), defaultConfig)
-import BlockchainWeb (BlockchainWebService(..), HealthCheck(..), Node, StatusMessage, newBlockchainWebServiceHandle)
+import BlockchainWeb (BlockchainWebService(..), HealthCheck(..), StatusMessage, newBlockchainWebServiceHandle)
+import Logger (getLogger)
 
+infoL :: String -> IO ()
+(infoL, _) = getLogger "Main"
 
 config :: BlockchainConfig
 config = defaultConfig
@@ -28,7 +30,7 @@ main :: IO ()
 main = do
   let settings =
         setPort (httpPort config) $
-        setBeforeMainLoop (hPutStrLn stderr ("listening on port " ++ show (httpPort config))) $
+        setBeforeMainLoop (infoL $ "listening on port " ++ show (httpPort config)) $
         defaultSettings
   runSettings settings =<< makeApplication
 
@@ -54,10 +56,12 @@ type HttpApi = "healthcheck" :> Get '[JSON] HealthCheck
           :<|> "mine" :> Post '[JSON] Block
           -- returns whole blochchain
           :<|> "chain" :> Get '[JSON] [Block]
+          -- returns a list of nodes known to this one
+          :<|> "nodes" :> "list" :> Get '[JSON] [Node]
           -- accepts a list of new nodes
-          :<|> "nodes" :> "register" :> ReqBody '[JSON] [Node] :> Post '[JSON] NoContent
+          :<|> "nodes" :> "register" :> ReqBody '[JSON] [Node] :> Post '[JSON] StatusMessage
           -- checks and sets the correct chain in the current node
-          :<|> "nodes" :> "resolve" :> Post '[JSON] NoContent
+          :<|> "nodes" :> "resolve" :> Post '[JSON] StatusMessage
 
 
 server :: BlockchainWebService -> Server HttpApi
@@ -67,6 +71,7 @@ server bws = toApi getHealthCheck
         :<|> toApi getUnconfirmedTransactions
         :<|> toApi mineBlock
         :<|> toApi getBlockchain
+        :<|> toApi getNodes
         :<|> toApi registerNodes
         :<|> toApi resolveNodes
             where
