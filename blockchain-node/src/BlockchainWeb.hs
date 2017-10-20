@@ -31,7 +31,7 @@ import Data.Time (getCurrentTime)
 import GHC.Generics (Generic)
 
 import BlockchainConfig (BlockchainConfig)
-import Blockchain (Block(..), Blockchain(..), Transaction(..), addTransaction, evalApp, runApp, mineNewBlock)
+import Blockchain ((<$$>), Block(..), Blockchain(..), Transaction(..), addTransaction, evalApp, runApp, mineNewBlock)
 
 
 data HealthStatus = OK | NOK deriving (Eq, Show, Generic)
@@ -61,6 +61,8 @@ instance FromJSON StatusMessage
 data BlockchainWebService = BlockchainWebService {
     getHealthCheck :: IO HealthCheck
   , newTransaction :: Transaction -> IO StatusMessage
+  , getConfirmedTransactions :: IO [Transaction]
+  , getUnconfirmedTransactions :: IO [Transaction]
   , mineBlock :: IO Block
   , getBlockchain :: IO [Block]
   , registerNodes :: [Node] -> IO ()
@@ -77,6 +79,10 @@ newBlockchainWebServiceHandle cfg blockchain = do
       runApp cfg (addTransaction transaction) blockchain
       return $ StatusMessage "Transaction was addedd",
 
+    getConfirmedTransactions = concat <$> (map transactions) <$$> readTVarIO $ blocks blockchain,
+
+    getUnconfirmedTransactions = readTVarIO $ currentTransactions blockchain,
+
     mineBlock = do
       currentTime <- getCurrentTime
       evalApp cfg (mineNewBlock currentTime) blockchain,
@@ -87,4 +93,3 @@ newBlockchainWebServiceHandle cfg blockchain = do
 
     resolveNodes = return ()
   }
-

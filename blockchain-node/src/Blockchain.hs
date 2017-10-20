@@ -38,6 +38,7 @@ module  Blockchain (
   , isValidBlock
   , calculateHash
   , sha256Hash
+  , (<$$>)
 ) where
 
 
@@ -245,5 +246,8 @@ calculateProofOfWork block difficulty
       | otherwise                     = calculateProofOfWork (block { proof = proof block + 1}) difficulty
 
 
+-- | Applies function to the double functor
 (<$$>) :: (Functor f, Functor g) => (a -> b) -> f (g a) -> f (g b)
 (<$$>) f g = (f <$>) <$> g
+
+infixl 4 <$$>

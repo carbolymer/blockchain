@@ -46,6 +46,10 @@ httpApi = Proxy
 type HttpApi = "healthcheck" :> Get '[JSON] HealthCheck
           -- new transaction
           :<|> "transactions" :> "new" :> ReqBody '[JSON] Transaction :>  Post '[JSON] StatusMessage
+          -- list of confirmed transactions in the chain
+          :<|> "transactions" :> "confirmed" :> Get '[JSON] [Transaction]
+          -- list of not confirmed transactions
+          :<|> "transactions" :> "unconfirmed" :>  Get '[JSON] [Transaction]
           -- mines a new block
           :<|> "mine" :> Post '[JSON] Block
           -- returns whole blochchain
@@ -59,6 +63,8 @@ type HttpApi = "healthcheck" :> Get '[JSON] HealthCheck
 server :: BlockchainWebService -> Server HttpApi
 server bws = toApi getHealthCheck
         :<|> toApi newTransaction
+        :<|> toApi getConfirmedTransactions
+        :<|> toApi getUnconfirmedTransactions
         :<|> toApi mineBlock
         :<|> toApi getBlockchain
         :<|> toApi registerNodes
