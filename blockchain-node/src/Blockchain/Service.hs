@@ -3,7 +3,7 @@
 
 -----------------------------------------------------------------------------
 -- |
--- Module      :  BlockchainWeb
+-- Module      :  Blockchain.Service
 -- Copyright   :  (c) carbolymer
 -- License     :  Apache-2.0
 --
@@ -15,14 +15,15 @@
 --
 -----------------------------------------------------------------------------
 
-module BlockchainWeb (
-    BlockchainWebService(..)
+module Blockchain.Service (
+    BlockchainService(..)
   , HealthCheck(..)
   , HealthStatus(..)
   , StatusMessage
-  , newBlockchainWebServiceHandle
+  , newBlockchainServiceHandle
 ) where
 
+import           Control.Monad.IO.Class (MonadIO)
 import           Control.Concurrent.STM.TVar (readTVarIO)
 import           Data.Aeson (FromJSON, ToJSON)
 import qualified Data.Set as S
@@ -30,8 +31,8 @@ import           Data.Text (Text)
 import           Data.Time (getCurrentTime)
 import           GHC.Generics (Generic)
 
-import BlockchainConfig (BlockchainConfig)
-import Blockchain ((<$$>), Block(..), Blockchain(..), Node(..), Transaction(..), addNodes, addTransaction, evalApp,
+import Blockchain.Config (BlockchainConfig)
+import Blockchain.Core ((<$$>), Block(..), Blockchain(..), Node(..), Transaction(..), addNodes, addTransaction, evalApp,
     runApp, mineNewBlock)
 
 
@@ -54,22 +55,20 @@ newtype StatusMessage = StatusMessage {
 instance ToJSON StatusMessage
 instance FromJSON StatusMessage
 
-data BlockchainWebService = BlockchainWebService {
-    getHealthCheck :: IO HealthCheck
-  , newTransaction :: Transaction -> IO StatusMessage
-  , getConfirmedTransactions :: IO [Transaction]
-  , getUnconfirmedTransactions :: IO [Transaction]
-  , mineBlock :: IO Block
-  , getBlockchain :: IO [Block]
-  , getNodes :: IO [Node]
-  , registerNodes :: [Node] -> IO StatusMessage
-  , resolveNodes :: IO StatusMessage
+data (MonadIO m) => BlockchainService m = BlockchainService {
+    getHealthCheck :: m HealthCheck
+  , newTransaction :: Transaction -> m StatusMessage
+  , getConfirmedTransactions :: m [Transaction]
+  , getUnconfirmedTransactions :: m [Transaction]
+  , mineBlock :: m (Maybe Block)
+  , getBlockchain :: m [Block]
+  , getNodes :: m [Node]
+  , registerNodes :: [Node] -> m StatusMessage
+  , resolveNodes :: m StatusMessage
 }
 
-newBlockchainWebServiceHandle :: BlockchainConfig -> Blockchain -> IO BlockchainWebService
-newBlockchainWebServiceHandle cfg blockchain = do
-
-  return BlockchainWebService {
+newBlockchainServiceHandle :: BlockchainConfig -> Blockchain -> IO (BlockchainService IO)
+newBlockchainServiceHandle cfg blockchain = return $ BlockchainService {
     getHealthCheck = return $ HealthCheck OK,
 
     newTransaction = \transaction -> do

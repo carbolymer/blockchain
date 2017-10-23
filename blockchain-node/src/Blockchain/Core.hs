@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 -----------------------------------------------------------------------------
 -- |
--- Module      :  Blockchain
+-- Module      :  Blockchain.Core
 -- Copyright   :  (c) carbolymer
 -- License     :  Apache-2.0
 --
@@ -13,7 +13,7 @@
 --
 -----------------------------------------------------------------------------
 
-module  Blockchain (
+module  Blockchain.Core (
   -- * Blockchain Application execution functions
     BlockchainApp
   , execApp
@@ -49,6 +49,9 @@ module  Blockchain (
 import           Control.Concurrent (threadDelay)
 import           Control.Concurrent.STM (atomically)
 import           Control.Concurrent.STM.TVar (TVar, newTVarIO, modifyTVar', readTVarIO, readTVar, writeTVar)
+import           Control.Monad (filterM)
+import           Control.Monad.Catch (catch)
+import           Control.Monad.IO.Class (MonadIO)
 import           Control.Monad.State (get, put, modify)
 import           Control.Monad.RWS (RWST, evalRWST, execRWST, liftIO, runRWST)
 import           Control.Monad.Reader (ask)
@@ -63,7 +66,7 @@ import           Data.Foldable (foldr')
 import           Data.List ((\\))
 import           Data.Maybe (fromMaybe)
 import qualified Data.Set as S
-import           Data.Text (Text, replace)
+import           Data.Text (Text, replace, unpack)
 import qualified Data.Text.Encoding as E
 import           Data.Time (getZonedTime)
 import           Data.Time.Clock (UTCTime(UTCTime), secondsToDiffTime)
@@ -71,12 +74,13 @@ import           Data.Time.Calendar (fromGregorian)
 import qualified Data.UUID as U
 import           GHC.Generics (Generic)
 import           Prelude hiding (id)
+import           Servant.Common.BaseUrl (InvalidBaseUrlException, parseBaseUrl)
 import           System.Random (randomIO)
 
-import           BlockchainConfig (BlockchainConfig(..))
+import           Blockchain.Config (BlockchainConfig(..))
 import           Logger
 
-(infoL, errorL) = getLogger "Blockchain"
+[infoL, warningL, errorL] = getLogger "Blockchain" [INFO, WARNING, ERROR]
 
 -- | Blockchain application environment
 -- TODO move Blockchain datatype into reader monad
@@ -208,8 +212,10 @@ getLastBlock = liftIO =<< last <$$> readTVarIO <$> blocks <$> get
 
 
 -- | Mines new block in the blockchain
-mineNewBlock :: UTCTime             -- ^ Creation time
-             -> BlockchainApp Block -- ^ Modified blockchain and the new block
+mineNewBlock :: UTCTime                     -- ^ Creation time
+             -> BlockchainApp (Maybe Block) -- ^ Modified blockchain and the new block if the block can be attached to
+                                            -- the blockchain, otherwise the blockchain is not modified and Nothing is
+                                            -- is returned
 mineNewBlock creationTime = do
   lastBlockHash <- calculateHash <$> getLastBlock
   blockchain <- get
@@ -232,12 +238,16 @@ mineNewBlock creationTime = do
   (proof validBlock) `seq` infoL $ "Mined block, proof=" ++ (show $ proof validBlock)
 
   liftIO $ atomically $ do
-    -- remove transactions already in newly mined block
-    modifyTVar' (currentTransactions blockchain) (\\ transactions)
-    -- add  block to the chain
-    modifyTVar' (blocks blockchain) (++ [validBlock])
-
-  return validBlock
+    -- check if the blockchain was not was not modified during mining
+    freshLastBlockHash <- calculateHash <$> last <$$> readTVar $ blocks blockchain
+    if freshLastBlockHash == previousHash validBlock
+        then do
+          -- remove transactions already in newly mined block
+          modifyTVar' (currentTransactions blockchain) (\\ transactions)
+          -- add  block to the chain
+          modifyTVar' (blocks blockchain) (++ [validBlock])
+          return $ Just validBlock
+        else return Nothing
 
 
 -- | Returns transaction with the mining reward assigned to the current node
@@ -248,15 +258,30 @@ getMiningReward time = do
   return $ Transaction "0" recipientAddress reward
 
 
+isValidUrl :: (MonadIO m) => Text -> m Bool
+isValidUrl url = liftIO $ catch
+    (parseBaseUrl (unpack url) >> return True)
+    handler
+    where
+      handler :: InvalidBaseUrlException -> IO Bool
+      handler e = return False
+
 -- | Adds nodes to the node list in the blockchain
+-- Returns `True` when
 addNodes :: [Node] -> BlockchainApp ()
 addNodes nodesToAdd = do
   blockchain <- get
   --  do not allow to insert current node
-  let filteredNodes = filter ((/= uuid blockchain) . id) nodesToAdd
+  filteredNodes <- filterM (isValidNode blockchain) nodesToAdd
   liftIO $ atomically $ modifyTVar' (nodes blockchain) $ \currentNodes -> do
     foldr' S.insert currentNodes filteredNodes
   infoL $ "added nodes: " ++ (show filteredNodes)
+  where
+    isValidNode :: Blockchain -> Node -> BlockchainApp Bool
+    isValidNode blockchain node = do
+      urlCheckResult <- isValidUrl (url node)
+      warningL $ "Invalid node received: " ++ (show node)
+      return $ (id node /= uuid blockchain) && urlCheckResult
 
 
 -- | Calculates SHA256 hash of the provided argument

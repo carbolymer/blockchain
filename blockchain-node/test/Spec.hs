@@ -1,8 +1,8 @@
 import Data.Time (getCurrentTime)
 import Test.Hspec
 
-import BlockchainConfig (BlockchainConfig(..), defaultConfig)
-import Blockchain (Block(..), evalApp, getLength, mineNewBlock, newBlockchain, newTransaction, runApp, sha256Hash)
+import Blockchain.Config (BlockchainConfig(..), defaultConfig)
+import Blockchain.Core (Block(..), evalApp, getLength, mineNewBlock, newBlockchain, newTransaction, runApp, sha256Hash)
 
 testConfig :: BlockchainConfig
 testConfig = defaultConfig { miningDifficulty = 2 }
