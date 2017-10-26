@@ -16,16 +16,18 @@ module Blockchain.RestApi.Client (
   , runRequests
 ) where
 
+import Control.Arrow (left)
 import Control.Monad (forM)
 import Control.Monad.Catch (Exception, throwM, try)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.State (get)
+import Control.Monad.Trans.Except (ExceptT(..), runExceptT, withExceptT)
 import Control.Concurrent.STM.TVar (readTVarIO)
 import Data.Text (unpack)
 import Data.Typeable (Typeable)
 import Network.HTTP.Client (defaultManagerSettings, newManager)
 import Servant ((:<|>)(..))
-import Servant.Client (ClientEnv(..), ClientM, client, runClientM)
+import Servant.Client (ClientEnv(..), ClientM, ServantError, client, runClientM)
 import Servant.Common.BaseUrl (BaseUrl, InvalidBaseUrlException, parseBaseUrl)
 
 import Blockchain.Core (Blockchain(..), BlockchainApp(..), Node(..))
@@ -57,30 +59,32 @@ data NodeRequest a = NodeRequest {
   nodeRequest :: ClientM a
 }
 
-newtype RunRequestException = RunRequestException String deriving (Show, Typeable)
-instance Exception RunRequestException
+newtype RequestException = RequestException String deriving (Show, Typeable)
+instance Exception RequestException
+
+toRequestException :: (Exception e) => e -> RequestException
+toRequestException exception = RequestException $ show exception 
 
 -- TODO refactor this mess
-runRequests :: [NodeRequest a] -> BlockchainApp ([Either RunRequestException a])
+runRequests :: [NodeRequest a] -> BlockchainApp ([Either RequestException a])
 runRequests requests = do
   -- TODO store manager in the app state maybe?
   manager <- liftIO $ newManager defaultManagerSettings
 --   nodes <- liftIO =<< readTVarIO <$> nodes <$> get
-  forM requests $ \request -> liftIO $ try $ do
-    targetNodeUrl <- getNodeUrl request
-    let env = ClientEnv manager targetNodeUrl
-    result <- runClientM (nodeRequest request) env
-    case result of
-      Left error ->
-          throwM $ RunRequestException $ "Error during calling node: " ++ (show $ targetNode request) ++ " " ++ (show error)
-      Right response -> return response
+  forM requests $ \request -> liftIO $ runExceptT $ do
+    nodeUrl <- getNodeUrl request
+    let env = ClientEnv manager nodeUrl
+    runClientExT (nodeRequest request) env
     where
-      getNodeUrl :: NodeRequest a -> IO BaseUrl
+      getNodeUrl :: NodeRequest a -> ExceptT RequestException IO BaseUrl
       getNodeUrl request = do
-        nodeUrl_ <- getNodeUrl_ request
-        case nodeUrl_ of
-          Left error -> throwM $ RunRequestException $ show error
-          Right baseUrl -> return baseUrl
+        convertInvalidBaseUrlException $ ExceptT $ try $ parseBaseUrl $ unpack $ url $ targetNode request
 
-      getNodeUrl_ :: NodeRequest a -> IO (Either InvalidBaseUrlException BaseUrl)
-      getNodeUrl_ request = try $ parseBaseUrl $ unpack $ url $ targetNode request
+      runClientExT :: ClientM a -> ClientEnv -> ExceptT RequestException IO a
+      runClientExT request env = convertServantError $ ExceptT $ runClientM request env
+        
+      convertServantError :: ExceptT ServantError IO a -> ExceptT RequestException IO a
+      convertServantError = withExceptT toRequestException
+
+      convertInvalidBaseUrlException :: ExceptT InvalidBaseUrlException IO a -> ExceptT RequestException IO a
+      convertInvalidBaseUrlException = withExceptT toRequestException
