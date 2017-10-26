@@ -91,5 +91,6 @@ newBlockchainServiceHandle cfg blockchain = return $ BlockchainService {
       runApp cfg (addNodes nodes) blockchain
       return $ StatusMessage "Nodes addes to nodes list",
 
-    resolveNodes = return $ StatusMessage "not implemented"
+    resolveNodes = do
+      return $ StatusMessage "not implemented"
   }

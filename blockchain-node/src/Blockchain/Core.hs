@@ -40,6 +40,7 @@ module  Blockchain.Core (
   , isValidBlock
   , isValidChain
   , isValidTransaction
+  , validateAndUpdateChain
   , calculateHash
   , sha256Hash
   , (<$$>)
@@ -52,7 +53,7 @@ import           Control.Concurrent.STM.TVar (TVar, newTVarIO, modifyTVar', read
 import           Control.Monad (filterM)
 import           Control.Monad.Catch (catch)
 import           Control.Monad.IO.Class (MonadIO)
-import           Control.Monad.State (get, put, modify)
+import           Control.Monad.State (get)
 import           Control.Monad.RWS (RWST, evalRWST, execRWST, liftIO, runRWST)
 import           Control.Monad.Reader (ask)
 import qualified Crypto.Hash.SHA256 as SHA256
@@ -63,8 +64,9 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Base16 as B16
 import           Data.ByteString.Char8 (pack)
 import           Data.Foldable (foldr')
-import           Data.List ((\\))
+import           Data.List ((\\), foldl', foldl, sortBy, tail)
 import           Data.Maybe (fromMaybe)
+import           Data.Ord (Ordering(..))
 import qualified Data.Set as S
 import           Data.Text (Text, replace, unpack)
 import qualified Data.Text.Encoding as E
@@ -115,7 +117,7 @@ data Blockchain = Blockchain {
   currentTransactions :: TVar [Transaction],  -- ^ Current transactions (to be included in the next block)
   blocks              :: TVar [Block],        -- ^ The list of valid blocks
   uuid                :: !Text,               -- ^ This node UUID
-  nodes               :: TVar (S.Set Node)     -- ^ Nodes set
+  nodes               :: TVar (S.Set Node)    -- ^ Nodes set
 } deriving (Eq)
 
 
@@ -143,7 +145,7 @@ instance FromJSON BS.ByteString where
 data Transaction = Transaction {
   sender      :: !Text,   -- ^ Sender address
   recipient   :: !Text,   -- ^ Recipient address
-  amount      :: !Double     -- ^ Transferred amount
+  amount      :: !Int     -- ^ Transferred amount
 } deriving (Show, Eq, Generic)
 
 instance ToJSON Transaction
@@ -191,7 +193,7 @@ genesisBlock = Block {
 -- | Adds new transaction to the transactions list, which will be added to the next block
 newTransaction :: Text                  -- ^ Sender address
                -> Text                  -- ^ Recipient address
-               -> Double                -- ^ Transfer amount
+               -> Int                -- ^ Transfer amount
                -> BlockchainApp Int     -- ^ Blockchain along with the index of the next-to-be-mined block
 newTransaction sender recipient amount = addTransaction $ Transaction sender recipient amount
 
@@ -294,7 +296,7 @@ calculateHash :: (Show a) => a -> BS.ByteString
 calculateHash = sha256Hash . pack . show
 
 
--- | Checks if the block is valid
+-- | Checks if the block is valid i.e. its proof of work meets difficulty requirements
 isValidBlock :: (Show a) => a -- ^ Block to validate
              -> Int           -- ^ Difficulty
              -> Bool          -- ^ `True` if the block is valid, `False` otherwise
@@ -313,13 +315,52 @@ calculateProofOfWork block difficulty
 -- | Validates provided chain of blocks
 --
 -- * Checks if blocks have correct hashes
--- * Validates all transactions in the blocks:
+-- * Validates all transactions in the blocks: (TODO)
 --
---     1. No negative account balance
---     2. Only last transaction in the block contains reward from mining
+--     1. No negative account balance (TODO)
+--     2. Only last transaction in the block contains reward from mining (TODO)
 --
-isValidChain :: [Block] -> BlockchainApp Bool
-isValidChain = undefined
+isValidChain :: Int -> [Block] -> Bool
+isValidChain difficulty []               = False
+isValidChain difficulty (singleBlock:[]) = singleBlock == genesisBlock
+isValidChain difficulty blocks           = do
+  let blockPairs = zip blocks (tail blocks)
+  foldl' validateBlockPair True blockPairs
+  where
+    validateBlockPair isValid (first, second) = isValid
+         && (index second - index first == 1)
+         && (previousHash second == calculateHash first)
+         && isValidBlock second difficulty
+
+
+-- | Validates list of blockchains. If the longest valid one is longer than the chain in this node, the current chain is
+-- updated to the new one. Returns `True` when chain was updated, `False` otherwise
+validateAndUpdateChain :: [[Block]] -> BlockchainApp Bool
+validateAndUpdateChain []     = return False
+validateAndUpdateChain [x:[]] = return False
+validateAndUpdateChain chains = do
+  difficulty <- miningDifficulty <$> ask
+  currentChainTVar <- blocks <$> get
+  -- longestFirst
+  let sortedChains = sortBy descOrder chains
+
+  liftIO $ atomically $ do
+    currentChainLength <- length <$> readTVar currentChainTVar
+    case getLongestValidChain difficulty sortedChains of
+       Just chain | length chain > currentChainLength -> do
+            writeTVar currentChainTVar chain
+            return True
+       _ -> return False
+  where
+    -- returns result of comparison for sorting in descending order
+    descOrder chain1 chain2 = case length chain1 - length chain2 of
+                               x | x > 0 -> LT
+                               x | x < 0 -> GT
+                               _         -> EQ
+
+    getLongestValidChain difficulty sortedChains = case filter (isValidChain difficulty) sortedChains of
+        []    -> Nothing
+        x:xs  -> Just x
 
 
 -- | Validates transaction (that it does not produce negative amount)
@@ -332,3 +373,10 @@ isValidTransaction = undefined
 (<$$>) f g = (f <$>) <$> g
 
 infixl 4 <$$>
+
+
+-- | flipped fmap
+(<&>) :: (Functor f) => f a -> (a -> b) -> f b
+(<&>) = flip fmap
+
+infixl 1 <&>
