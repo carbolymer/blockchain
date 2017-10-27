@@ -47,7 +47,6 @@ module  Blockchain.Core (
 ) where
 
 
-import           Control.Concurrent (threadDelay)
 import           Control.Concurrent.STM (atomically)
 import           Control.Concurrent.STM.TVar (TVar, newTVarIO, modifyTVar', readTVarIO, readTVar, writeTVar)
 import           Control.Monad (filterM)
@@ -64,13 +63,11 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Base16 as B16
 import           Data.ByteString.Char8 (pack)
 import           Data.Foldable (foldr')
-import           Data.List ((\\), foldl', foldl, sortBy, tail)
-import           Data.Maybe (fromMaybe)
+import           Data.List ((\\), foldl', sortBy, tail)
 import           Data.Ord (Ordering(..))
 import qualified Data.Set as S
 import           Data.Text (Text, replace, unpack)
 import qualified Data.Text.Encoding as E
-import           Data.Time (getZonedTime)
 import           Data.Time.Clock (UTCTime(UTCTime), secondsToDiffTime)
 import           Data.Time.Calendar (fromGregorian)
 import qualified Data.UUID as U
@@ -82,7 +79,7 @@ import           System.Random (randomIO)
 import           Blockchain.Config (BlockchainConfig(..))
 import           Logger
 
-[infoL, warningL, errorL] = getLogger "Blockchain" [INFO, WARNING, ERROR]
+[infoL, warningL] = getLogger "Blockchain" [INFO, WARNING]
 
 -- | Blockchain application environment
 -- TODO move Blockchain datatype into reader monad
@@ -266,7 +263,7 @@ isValidUrl url = liftIO $ catch
     handler
     where
       handler :: InvalidBaseUrlException -> IO Bool
-      handler e = return False
+      handler _ = return False
 
 -- | Adds nodes to the node list in the blockchain
 -- Returns `True` when
@@ -321,9 +318,9 @@ calculateProofOfWork block difficulty
 --     2. Only last transaction in the block contains reward from mining (TODO)
 --
 isValidChain :: Int -> [Block] -> Bool
-isValidChain difficulty []               = False
-isValidChain difficulty (singleBlock:[]) = singleBlock == genesisBlock
-isValidChain difficulty blocks           = do
+isValidChain _ []               = False
+isValidChain _ (singleBlock:[]) = singleBlock == genesisBlock
+isValidChain difficulty blocks  = do
   let blockPairs = zip blocks (tail blocks)
   foldl' validateBlockPair True blockPairs
   where
@@ -337,7 +334,7 @@ isValidChain difficulty blocks           = do
 -- updated to the new one. Returns `True` when chain was updated, `False` otherwise
 validateAndUpdateChain :: [[Block]] -> BlockchainApp Bool
 validateAndUpdateChain []     = return False
-validateAndUpdateChain [x:[]] = return False
+validateAndUpdateChain [_:[]] = return False
 validateAndUpdateChain chains = do
   difficulty <- miningDifficulty <$> ask
   currentChainTVar <- blocks <$> get
@@ -360,7 +357,7 @@ validateAndUpdateChain chains = do
 
     getLongestValidChain difficulty sortedChains = case filter (isValidChain difficulty) sortedChains of
         []    -> Nothing
-        x:xs  -> Just x
+        x:_  -> Just x
 
 
 -- | Validates transaction (that it does not produce negative amount)
@@ -375,8 +372,8 @@ isValidTransaction = undefined
 infixl 4 <$$>
 
 
--- | flipped fmap
-(<&>) :: (Functor f) => f a -> (a -> b) -> f b
-(<&>) = flip fmap
-
-infixl 1 <&>
+-- -- | flipped fmap
+-- (<&>) :: (Functor f) => f a -> (a -> b) -> f b
+-- (<&>) = flip fmap
+--
+-- infixl 1 <&>

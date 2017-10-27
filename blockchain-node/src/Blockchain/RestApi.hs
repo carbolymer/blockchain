@@ -25,7 +25,8 @@ import Servant.Client (client)
 
 import Blockchain.Core (Block, Node, Transaction, newBlockchain)
 import Blockchain.Config (BlockchainConfig(..), defaultConfig)
-import Blockchain.Service (BlockchainService(..), HealthCheck(..), StatusMessage, newBlockchainServiceHandle)
+import Blockchain.Service (BlockchainService(..), HealthCheck(..), StatusMessage)
+import Blockchain.Service.Server (newBlockchainServiceHandle)
 import Logger(getLogger)
 
 

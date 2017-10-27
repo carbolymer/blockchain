@@ -13,8 +13,6 @@
 -----------------------------------------------------------------------------
 module Logger (Level(..), getLogger) where
 
-import Control.Concurrent
-import Control.Monad.RWS
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Time (defaultTimeLocale, formatTime, getZonedTime)
 
