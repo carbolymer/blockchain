@@ -19,6 +19,7 @@ module Blockchain.RestApi.Server (
 
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Function((&))
+import Network.HostName (getHostName)
 import Network.Wai.Handler.Warp (defaultSettings, runSettings, setBeforeMainLoop, setPort)
 import Servant ((:>), (:<|>)(..), Application, Get, Handler, JSON, NoContent(..), Post, Proxy(..), ReqBody, Server, serve)
 
@@ -50,9 +51,10 @@ server service = toApi getHealthCheck
 -- | Starts the web application
 bootstrap :: BlockchainConfig -> IO ()
 bootstrap config = do
+  hostname <- getHostName
   let settings =
         setPort (httpPort config) $
-        setBeforeMainLoop (infoL $ "listening on port " ++ show (httpPort config)) $
+        setBeforeMainLoop (infoL $ "listening on endpoint http://" ++ hostname ++ ":" ++ show (httpPort config)) $
         defaultSettings
   runSettings settings =<< (makeApplication config)
 

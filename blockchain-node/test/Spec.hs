@@ -1,8 +1,10 @@
-import Data.Time (getCurrentTime)
-import Test.Hspec
+import           Data.Time (getCurrentTime)
+import           Test.Hspec
 
-import Blockchain.Config (BlockchainConfig(..), defaultConfig)
-import Blockchain.Core (Block(..), evalApp, getLength, mineNewBlock, newBlockchain, newTransaction, runApp, sha256Hash)
+import           Blockchain.Config (BlockchainConfig(..), defaultConfig)
+import           Blockchain.Core (Blockchain(..), Block(..), Node(..), evalApp, getLength, mineNewBlock, newBlockchain, newTransaction, runApp, sha256Hash)
+import qualified Blockchain.Service as Service
+import           Blockchain.Service.Server (newBlockchainServiceHandle)
 
 testConfig :: BlockchainConfig
 testConfig = defaultConfig { miningDifficulty = 2 }
@@ -29,8 +31,27 @@ main = hspec $ do
       -- blockchain with 1 current transaction
       currentBlockchain <- newBlockchain
       let createNewTransactionAndNewBlock currentTime = do
-                    newTransaction "sender" "recipient" 1
+                    _ <- newTransaction "sender" "recipient" 1
                     mineNewBlock currentTime
-      (newBlock, blockchain) <- runApp testConfig (createNewTransactionAndNewBlock currentTime) currentBlockchain
-      (length $ transactions newBlock) `shouldBe` 2
+      (newBlock, _) <- runApp testConfig (createNewTransactionAndNewBlock currentTime) currentBlockchain
+      (length <$> transactions <$> newBlock) `shouldBe` Just 2
 
+  describe "Service - Register Nodes" $ do
+    it "adds an invalid node - invalid URL" $ do
+      blockchain <- newBlockchain
+      service <- newBlockchainServiceHandle testConfig blockchain
+      _ <- Service.registerNodes service [Node "samplename" "invalid url"]
+      nodesFromService <- Service.getNodes service
+      length nodesFromService `shouldBe` 0
+    it "adds an invalid node - this node" $ do
+      blockchain <- newBlockchain
+      service <- newBlockchainServiceHandle testConfig blockchain
+      _ <- Service.registerNodes service [Node (uuid blockchain) "http://localhost:8000"]
+      nodesFromService <- Service.getNodes service
+      length nodesFromService `shouldBe` 0
+    it "adds a valid node" $ do
+      blockchain <- newBlockchain
+      service <- newBlockchainServiceHandle testConfig blockchain
+      _ <- Service.registerNodes service [Node "samplename" "http://127.0.1.10:8000"]
+      nodesFromService <- Service.getNodes service
+      length nodesFromService `shouldBe` 1

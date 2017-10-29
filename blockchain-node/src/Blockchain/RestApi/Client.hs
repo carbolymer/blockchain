@@ -76,7 +76,7 @@ runRequests requests = do
   where
     getNodeUrl :: NodeRequest a -> ExceptT RequestException IO BaseUrl
     getNodeUrl request = (toRequestException :: ExceptionMapperT InvalidBaseUrlException a) $
-          try $ parseBaseUrl $ unpack $ url $ targetNode request
+        try $ parseBaseUrl $ unpack $ url $ targetNode request
 
     runClientExT :: ClientM a -> ClientEnv -> ExceptT RequestException IO a
     runClientExT request env = (toRequestException :: ExceptionMapperT ServantError a) $

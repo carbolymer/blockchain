@@ -17,17 +17,10 @@ module Blockchain.RestApi (
   , restApi
 ) where
 
-import Control.Monad.IO.Class (liftIO)
-import Data.Function((&))
-import Network.Wai.Handler.Warp (defaultSettings, runSettings, setBeforeMainLoop, setPort)
-import Servant ((:>), (:<|>)(..), Application, Get, Handler, JSON, NoContent(..), Post, Proxy(..), ReqBody, Server, serve)
-import Servant.Client (client)
+import Servant ((:>), (:<|>)(..), Get, Handler, JSON, NoContent(..), Post, Proxy(..), ReqBody)
 
-import Blockchain.Core (Block, Node, Transaction, newBlockchain)
-import Blockchain.Config (BlockchainConfig(..), defaultConfig)
+import Blockchain.Core (Block, Node, Transaction,)
 import Blockchain.Service (BlockchainService(..), HealthCheck(..), StatusMessage)
-import Blockchain.Service.Server (newBlockchainServiceHandle)
-import Logger(getLogger)
 
 
 -- | The definition of the node API

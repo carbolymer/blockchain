@@ -29,26 +29,31 @@ import           GHC.Generics (Generic)
 
 import Blockchain.Core (Block, Blockchain, Node, Transaction)
 
-
-data HealthStatus = OK | NOK deriving (Eq, Show, Generic)
+-- | Value of node health
+data HealthStatus = OK  -- ^ All systems running
+                  | NOK -- ^ There are some issues
+                  deriving (Eq, Show, Generic)
 
 instance ToJSON HealthStatus
 instance FromJSON HealthStatus
 
+-- | DTO for `HealthStatus`
 data HealthCheck = HealthCheck {
-  health :: HealthStatus
+  health :: HealthStatus    -- ^ Returns health status
 } deriving (Eq, Show, Generic)
 
 instance ToJSON HealthCheck
 instance FromJSON HealthCheck
 
+-- | DTO with status message
 newtype StatusMessage = StatusMessage {
-  message :: Text
+  message :: Text   -- ^ The status message
 } deriving (Eq, Show, Generic)
 
 instance ToJSON StatusMessage
 instance FromJSON StatusMessage
 
+-- | A blockchain main service
 data (MonadIO m) => BlockchainService m = BlockchainService {
     getHealthCheck :: m HealthCheck
   , newTransaction :: Transaction -> m StatusMessage

@@ -49,7 +49,7 @@ module  Blockchain.Core (
 
 import           Control.Concurrent.STM (atomically)
 import           Control.Concurrent.STM.TVar (TVar, newTVarIO, modifyTVar', readTVarIO, readTVar, writeTVar)
-import           Control.Monad (filterM)
+import           Control.Monad (filterM, unless)
 import           Control.Monad.Catch (catch)
 import           Control.Monad.IO.Class (MonadIO)
 import           Control.Monad.State (get)
@@ -72,6 +72,7 @@ import           Data.Time.Clock (UTCTime(UTCTime), secondsToDiffTime)
 import           Data.Time.Calendar (fromGregorian)
 import qualified Data.UUID as U
 import           GHC.Generics (Generic)
+import           Network.HostName (getHostName)
 import           Prelude hiding (id)
 import           Servant.Common.BaseUrl (InvalidBaseUrlException, parseBaseUrl)
 import           System.Random (randomIO)
@@ -114,7 +115,8 @@ data Blockchain = Blockchain {
   currentTransactions :: TVar [Transaction],  -- ^ Current transactions (to be included in the next block)
   blocks              :: TVar [Block],        -- ^ The list of valid blocks
   uuid                :: !Text,               -- ^ This node UUID
-  nodes               :: TVar (S.Set Node)    -- ^ Nodes set
+  nodes               :: TVar (S.Set Node),    -- ^ Nodes set
+  hostName            :: !String              -- ^ This node hostname
 } deriving (Eq)
 
 
@@ -168,7 +170,8 @@ newBlockchain = do
   currentTransactions <- newTVarIO []
   blocks <- newTVarIO [genesisBlock]
   nodes <- newTVarIO S.empty
-  return $ Blockchain currentTransactions blocks (replace "-" "" nodeUuid) nodes
+  hostName <- getHostName
+  return $ Blockchain currentTransactions blocks (replace "-" "" nodeUuid) nodes hostName
 
 
 -- | Returns current length of the blockchain
@@ -190,7 +193,7 @@ genesisBlock = Block {
 -- | Adds new transaction to the transactions list, which will be added to the next block
 newTransaction :: Text                  -- ^ Sender address
                -> Text                  -- ^ Recipient address
-               -> Int                -- ^ Transfer amount
+               -> Int                   -- ^ Transfer amount
                -> BlockchainApp Int     -- ^ Blockchain along with the index of the next-to-be-mined block
 newTransaction sender recipient amount = addTransaction $ Transaction sender recipient amount
 
@@ -279,7 +282,7 @@ addNodes nodesToAdd = do
     isValidNode :: Blockchain -> Node -> BlockchainApp Bool
     isValidNode blockchain node = do
       urlCheckResult <- isValidUrl (url node)
-      warningL $ "Invalid node received: " ++ (show node)
+      unless urlCheckResult $ warningL $ "Invalid node received: " ++ (show node)
       return $ (id node /= uuid blockchain) && urlCheckResult
 
 
@@ -356,8 +359,8 @@ validateAndUpdateChain chains = do
                                _         -> EQ
 
     getLongestValidChain difficulty sortedChains = case filter (isValidChain difficulty) sortedChains of
-        []    -> Nothing
-        x:_  -> Just x
+        []  -> Nothing
+        x:_ -> Just x
 
 
 -- | Validates transaction (that it does not produce negative amount)
@@ -370,10 +373,3 @@ isValidTransaction = undefined
 (<$$>) f g = (f <$>) <$> g
 
 infixl 4 <$$>
-
-
--- -- | flipped fmap
--- (<&>) :: (Functor f) => f a -> (a -> b) -> f b
--- (<&>) = flip fmap
---
--- infixl 1 <&>

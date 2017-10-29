@@ -28,10 +28,17 @@ The application is listening on `http://localhost:8000/` and the following endpo
 | `POST /mine` | mines a new block
 | `POST /nodes/all` | lists all nodes known to this one
 | `POST /nodes/register` | accepts a list of new nodes and add them to this one
-| `POST /nodes/resolve` | queries all nodes, and checks if this one has correct chain
+| `POST /nodes/resolve` | queries all nodes, and checks if this one has the longest correct chain
 
 
 
 ## TODO
-* [ ] Docker container with the binary
-* [ ] Registering and resolving nodes
+* [ ] Docker image
+    - [ ] generating docker image from Stack
+    - [ ] launching multiple nodes using Docker Compose
+* [ ] Network interaction
+    - [ ] automatic registration to the beacon node on start
+    - [ ] resolving of nodes in network in background
+    - [ ] propagation of nodes list in background
+* [ ] Transactions signing with ECDSA
+* [ ] Web UI
