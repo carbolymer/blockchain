@@ -22,13 +22,10 @@ module Blockchain.RestApi.Client (
 ) where
 
 
-import Control.Monad (forM)
-import Control.Monad.Catch (Exception, throwM, try)
+import Control.Monad.Catch (Exception, try)
 import Control.Monad.IO.Class (liftIO)
-import Control.Monad.State (get)
 import Control.Monad.Trans.Except (ExceptT(..), runExceptT, withExceptT)
 import Control.Concurrent.Async (forConcurrently)
-import Control.Concurrent.STM.TVar (readTVarIO)
 import Data.Text (unpack)
 import Data.Typeable (Typeable)
 import Network.HTTP.Client (defaultManagerSettings, newManager)
@@ -36,11 +33,9 @@ import Servant ((:<|>)(..))
 import Servant.Client (ClientEnv(..), ClientM, ServantError, client, runClientM)
 import Servant.Common.BaseUrl (BaseUrl, InvalidBaseUrlException, parseBaseUrl)
 
-import Blockchain.Core (Blockchain(..), BlockchainApp(..), Node(..))
+import Blockchain.Core (BlockchainApp, Node(..))
 import Blockchain.Service (BlockchainService(..))
-import Blockchain.RestApi (RestApi, restApi)
-import Logger
-
+import Blockchain.RestApi (restApi)
 
 
 -- | Creates new Blockchain REST api client

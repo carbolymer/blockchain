@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Blockchain.Service.Server
@@ -23,7 +22,7 @@ import           Data.String (fromString)
 import           Data.Time (getCurrentTime)
 
 import Blockchain.Config (BlockchainConfig)
-import Blockchain.Core ((<$$>), Block(..), Blockchain(..), Node(..), Transaction(..), addNodes, addTransaction, evalApp,
+import Blockchain.Core ((<$$>), Block(..), Blockchain(..), addNodes, addTransaction, evalApp,
     runApp, mineNewBlock, validateAndUpdateChain)
 import Blockchain.Service (BlockchainService(..), HealthStatus(..), HealthCheck(..), StatusMessage(..))
 import Blockchain.RestApi.Client (NodeRequest(..), RequestException, newBlockchainRestApiClient, runRequests)
@@ -38,7 +37,7 @@ newBlockchainServiceHandle cfg blockchain = return $ BlockchainService {
     getHealthCheck = return $ HealthCheck OK,
 
     newTransaction = \transaction -> do
-      runApp cfg (addTransaction transaction) blockchain
+      _ <- runApp cfg (addTransaction transaction) blockchain
       return $ StatusMessage "Transaction was addedd",
 
     getConfirmedTransactions = concat <$> (map transactions) <$$> readTVarIO $ blocks blockchain,
@@ -54,7 +53,7 @@ newBlockchainServiceHandle cfg blockchain = return $ BlockchainService {
     getNodes = S.toList <$$> readTVarIO $ nodes blockchain,
 
     registerNodes = \nodes -> do
-      runApp cfg (addNodes nodes) blockchain
+      _ <- runApp cfg (addNodes nodes) blockchain
       return $ StatusMessage "Nodes addes to nodes list",
 
     resolveNodes = do
@@ -74,5 +73,5 @@ newBlockchainServiceHandle cfg blockchain = return $ BlockchainService {
 
     fetchChainsAndResolve requestsList = do
       result <- runRequests requestsList
-      mapM logNodeRequestResult result
+      mapM_ logNodeRequestResult result
       validateAndUpdateChain (rights result)

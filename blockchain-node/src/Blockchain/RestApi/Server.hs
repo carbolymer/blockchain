@@ -21,16 +21,16 @@ import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Function((&))
 import Network.HostName (getHostName)
 import Network.Wai.Handler.Warp (defaultSettings, runSettings, setBeforeMainLoop, setPort)
-import Servant ((:>), (:<|>)(..), Application, Get, Handler, JSON, NoContent(..), Post, Proxy(..), ReqBody, Server, serve)
+import Servant ((:<|>)(..), Application, Handler, NoContent(..), Server, serve)
 
-import Blockchain.Core (Block, Node, Transaction, newBlockchain)
-import Blockchain.Config (BlockchainConfig(..), defaultConfig)
-import Blockchain.Service (BlockchainService(..), HealthCheck(..), StatusMessage)
+import Blockchain.Core (newBlockchain)
+import Blockchain.Config (BlockchainConfig(..))
+import Blockchain.Service (BlockchainService(..))
 import Blockchain.Service.Server (newBlockchainServiceHandle)
 import Blockchain.RestApi (RestApi, restApi)
 import Logger
 
-
+infoL :: (MonadIO m) => String -> m ()
 [infoL] = getLogger "Blockchain.RestApi.Server" [INFO]
 
 

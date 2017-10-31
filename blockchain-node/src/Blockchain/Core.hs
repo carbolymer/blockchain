@@ -80,6 +80,8 @@ import           System.Random (randomIO)
 import           Blockchain.Config (BlockchainConfig(..))
 import           Logger
 
+
+infoL, warningL :: (MonadIO m) => String -> m ()
 [infoL, warningL] = getLogger "Blockchain" [INFO, WARNING]
 
 -- | Blockchain application environment

@@ -17,10 +17,10 @@ module Blockchain.RestApi (
   , restApi
 ) where
 
-import Servant ((:>), (:<|>)(..), Get, Handler, JSON, NoContent(..), Post, Proxy(..), ReqBody)
+import Servant ((:>), (:<|>)(..), Get, JSON, Post, Proxy(..), ReqBody)
 
 import Blockchain.Core (Block, Node, Transaction,)
-import Blockchain.Service (BlockchainService(..), HealthCheck(..), StatusMessage)
+import Blockchain.Service (HealthCheck(..), StatusMessage)
 
 
 -- | The definition of the node API

@@ -27,7 +27,7 @@ import           Data.Aeson (FromJSON, ToJSON)
 import           Data.Text (Text)
 import           GHC.Generics (Generic)
 
-import Blockchain.Core (Block, Blockchain, Node, Transaction)
+import Blockchain.Core (Block, Node, Transaction)
 
 -- | Value of node health
 data HealthStatus = OK  -- ^ All systems running
