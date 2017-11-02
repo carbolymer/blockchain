@@ -4,15 +4,14 @@ Just a simple implementation of the blockchain from the article: https://hackern
 
 ## How to run
 
-1. You have to have Haskell [Stack](https://docs.haskellstack.org/en/stable/README/) installed.
+1. You have to have Docker and Docker Compose installed.
 2. Execute following commands in the project root directory to build the project
 ```
-stack setup
-stack build
+docker-compose run --rm build
 ```
 3. Start the blockchain node
 ```
-stack exec blockchain-node-exe
+docker-compose up -d node
 ````
 
 ## HTTP Endpoints
@@ -33,12 +32,10 @@ The application is listening on `http://localhost:8000/` and the following endpo
 
 
 ## TODO
-* [ ] Docker image
-    - [ ] generating docker image from Stack
-    - [ ] launching multiple nodes using Docker Compose
+* [ ] Web UI
 * [ ] Network interaction
     - [ ] automatic registration to the beacon node on start
     - [ ] resolving of nodes in network in background
     - [ ] propagation of nodes list in background
 * [ ] Transactions signing with ECDSA
-* [ ] Web UI
+

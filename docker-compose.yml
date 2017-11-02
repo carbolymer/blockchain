@@ -1,0 +1,23 @@
+version: '3'
+services:
+  build:
+    image:  blockchain-build
+    build:
+      context: .
+      dockerfile: Dockerfile-build
+    tty: true
+    volumes:
+      - .stack:/home/buildusr/.stack
+      - .:/workspace
+    entrypoint:
+      - /bin/sh
+      - -c
+      - 'stack clean && stack-build-static upx'
+
+  node:
+    image: blockchain-node
+    build:
+      context: .
+      dockerfile: Dockerfile-run
+    ports:
+      - "8000:8000"

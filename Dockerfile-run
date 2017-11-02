@@ -1,0 +1,3 @@
+FROM alpine:3.6
+COPY * /usr/local/bin/
+ENTRYPOINT ["/usr/local/bin/blockchain-node-exe", "8000"]
