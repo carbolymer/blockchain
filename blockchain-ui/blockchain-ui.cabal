@@ -1,4 +1,4 @@
-name:                blockchain-node
+name:                blockchain-ui
 version:             0.1.0.0
 -- synopsis:
 -- description:
@@ -8,73 +8,54 @@ license-file:        LICENSE
 author:              carbolymer
 maintainer:          example@example.com
 copyright:           2017 carbolymer
-category:            Blockchain
+category:            Web
 build-type:          Simple
 extra-source-files:  README.md
 cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Blockchain.Node.Core
-                     , Blockchain.Node.Config
-                     , Blockchain.Node.Service
-                     , Blockchain.Node.Service.Server
-                     , Blockchain.Node.RestApi
-                     , Blockchain.Node.RestApi.Client
-                     , Blockchain.Node.RestApi.Server
-                     , Logger
-                     , NetworkUtil
-                     , RestUtil
+  exposed-modules:     Blockchain.UI.Config
+                     , Blockchain.UI.Core
+                     , Blockchain.UI.RestApi
+                     , Blockchain.UI.RestApi.Server
+                     , Blockchain.UI.Service.Server
   build-depends:       base >= 4.7 && < 5
-                     , aeson >= 1.2.2
-                     , async >= 2.1.1
-                     , base16-bytestring >= 0.1.1
+                     , blockchain-node
                      , bytestring >= 0.10.8
+                     , aeson >= 1.2.2
                      , containers >= 0.5.7
-                     , cryptohash-sha256 >= 0.11.100
-                     , exceptions >= 0.8.3
                      , hostname == 1.0
-                     , http-client >= 0.5.6
-                     , mtl >= 2.2.1
-                     , random >= 1.1
+                     , http-types >= 0.9
                      , servant >= 0.11
                      , servant-client >= 0.11
                      , servant-server >= 0.11
-                     , stm >= 2.4.4
                      , text >= 1.2.2
-                     , time >= 1.8.0
-                     , transformers >= 0.5
-                     , uuid >= 1.3.13
                      , wai >= 3.2.1
+                     , wai-app-static >= 3.1.6
                      , warp >= 3.2.13
   default-language:    Haskell2010
   ghc-options:         -O2 -optc-O2 -Wall -Wno-name-shadowing -Wno-orphans
   default-extensions:  NoMonomorphismRestriction
 
-executable blockchain-node-exe
+executable blockchain-ui-exe
   hs-source-dirs:      app
   main-is:             Main.hs
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N -O2 -optc-O2 -Wall
-  default-extensions:  OverloadedStrings
   build-depends:       base
-                     , blockchain-node
+                     , blockchain-ui
+                     , text >= 1.2.2
   default-language:    Haskell2010
 
-test-suite blockchain-node-test
+test-suite blockchain-ui-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
   main-is:             Spec.hs
   build-depends:       base
-                     , blockchain-node
-                     , hspec
-                     , HUnit
-                     , mtl >= 2.2.1
-                     , QuickCheck
-                     , time >= 1.8.0
+                     , blockchain-ui
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N -Wall
-  default-extensions:  OverloadedStrings
   default-language:    Haskell2010
 
 source-repository head
   type:     git
-  location: https://github.com/carbolymer/blockchain
+  location: https://github.com/carolymer/blockchain

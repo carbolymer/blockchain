@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 -----------------------------------------------------------------------------
 -- |
--- Module      :  Blockchain.Service.Server
+-- Module      :  Blockchain.Node.Service.Server
 -- Copyright   :  (c) carbolymer
 -- License     :  Apache-2.0
 --
@@ -12,7 +12,7 @@
 --
 -----------------------------------------------------------------------------
 
-module Blockchain.Service.Server (newBlockchainServiceHandle) where
+module Blockchain.Node.Service.Server (newBlockchainServiceHandle) where
 
 import           Control.Monad.IO.Class (MonadIO)
 import           Control.Concurrent.STM.TVar (readTVarIO)
@@ -20,16 +20,17 @@ import           Data.Either (rights)
 import qualified Data.Set as S
 import           Data.String (fromString)
 import           Data.Time (getCurrentTime)
+import           Data.Text (pack)
 
-import Blockchain.Config (BlockchainConfig)
-import Blockchain.Core ((<$$>), Block(..), Blockchain(..), addNodes, addTransaction, evalApp,
+import Blockchain.Node.Config (BlockchainConfig(..))
+import Blockchain.Node.Core ((<$$>), Block(..), Blockchain(..), Node(..), addNodes, addTransaction, evalApp,
     runApp, mineNewBlock, validateAndUpdateChain)
-import Blockchain.Service (BlockchainService(..), HealthStatus(..), HealthCheck(..), StatusMessage(..))
-import Blockchain.RestApi.Client (NodeRequest(..), RequestException, newBlockchainRestApiClient, runRequests)
-import Logger
+import Blockchain.Node.Service (BlockchainService(..), HealthStatus(..), HealthCheck(..), MessageLevel(..), StatusMessage(..))
+import Blockchain.Node.RestApi.Client (NodeRequest(..), RequestException, newBlockchainRestApiClient, runRequests)
+import qualified Logger
 
 infoL, warnL :: (MonadIO m) => String -> m ()
-[infoL, warnL] = getLogger "Blockchain.Service.Server" [INFO, WARNING]
+[infoL, warnL] = Logger.getLogger "Blockchain.Node.Service.Server" [Logger.INFO, Logger.WARNING]
 
 -- | Creates new `BlockchainService` handle
 newBlockchainServiceHandle :: BlockchainConfig -> Blockchain -> IO (BlockchainService IO)
@@ -38,7 +39,7 @@ newBlockchainServiceHandle cfg blockchain = return $ BlockchainService {
 
     newTransaction = \transaction -> do
       _ <- runApp cfg (addTransaction transaction) blockchain
-      return $ StatusMessage "Transaction was addedd",
+      return $ StatusMessage INFO "Transaction was addedd",
 
     getConfirmedTransactions = concat <$> (map transactions) <$$> readTVarIO $ blocks blockchain,
 
@@ -50,11 +51,15 @@ newBlockchainServiceHandle cfg blockchain = return $ BlockchainService {
 
     getBlockchain = readTVarIO $ blocks blockchain,
 
-    getNodes = S.toList <$$> readTVarIO $ nodes blockchain,
+    getNodes = do
+      let thisNode = Node
+            (uuid blockchain)
+            (pack $ "http://" ++ hostName blockchain ++ ":" ++ (show $ httpPort cfg) ++ "/")
+      ([thisNode] ++) <$> S.toList <$$> readTVarIO $ nodes blockchain,
 
     registerNodes = \nodes -> do
       _ <- runApp cfg (addNodes nodes) blockchain
-      return $ StatusMessage "Nodes addes to nodes list",
+      return $ StatusMessage INFO "Nodes addes to nodes list",
 
     resolveNodes = do
       nodesList <- S.toList <$$> readTVarIO $ nodes blockchain
@@ -63,7 +68,7 @@ newBlockchainServiceHandle cfg blockchain = return $ BlockchainService {
       let message = if wasChainUpdated then "Longer chain found. Current chain was updated."
                                        else "We have longest chain. Left intact."
       infoL message
-      return $ StatusMessage (fromString message)
+      return $ StatusMessage INFO (fromString message)
   }
   where
     logNodeRequestResult :: (MonadIO m, Show a) => Either RequestException a -> m ()

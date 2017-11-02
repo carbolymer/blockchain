@@ -1,6 +1,6 @@
 -----------------------------------------------------------------------------
 -- |
--- Module      :  Blockchain.Config
+-- Module      :  Blockchain.Node.Config
 -- Copyright   :  (c) carbolymer
 -- License     :  Apache-2.0
 --
@@ -11,7 +11,7 @@
 --
 -----------------------------------------------------------------------------
 
-module Blockchain.Config where
+module Blockchain.Node.Config where
 
 -- | The settings data structure
 data BlockchainConfig = BlockchainConfig {
@@ -29,6 +29,6 @@ data BlockchainConfig = BlockchainConfig {
 defaultConfig :: BlockchainConfig
 defaultConfig = BlockchainConfig {
   httpPort = 8000,
-  miningDifficulty = 5,
+  miningDifficulty = 4,
   miningReward = 1
 }

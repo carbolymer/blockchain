@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 -----------------------------------------------------------------------------
 -- |
--- Module      :  Blockchain.Core
+-- Module      :  Blockchain.Node.Core
 -- Copyright   :  (c) carbolymer
 -- License     :  Apache-2.0
 --
@@ -13,7 +13,7 @@
 --
 -----------------------------------------------------------------------------
 
-module  Blockchain.Core (
+module  Blockchain.Node.Core (
   -- * Blockchain Application execution functions
     BlockchainApp
   , execApp
@@ -50,7 +50,6 @@ module  Blockchain.Core (
 import           Control.Concurrent.STM (atomically)
 import           Control.Concurrent.STM.TVar (TVar, newTVarIO, modifyTVar', readTVarIO, readTVar, writeTVar)
 import           Control.Monad (filterM, unless)
-import           Control.Monad.Catch (catch)
 import           Control.Monad.IO.Class (MonadIO)
 import           Control.Monad.State (get)
 import           Control.Monad.RWS (RWST, evalRWST, execRWST, liftIO, runRWST)
@@ -66,7 +65,7 @@ import           Data.Foldable (foldr')
 import           Data.List ((\\), foldl', sortBy, tail)
 import           Data.Ord (Ordering(..))
 import qualified Data.Set as S
-import           Data.Text (Text, replace, unpack)
+import           Data.Text (Text, replace)
 import qualified Data.Text.Encoding as E
 import           Data.Time.Clock (UTCTime(UTCTime), secondsToDiffTime)
 import           Data.Time.Calendar (fromGregorian)
@@ -74,15 +73,14 @@ import qualified Data.UUID as U
 import           GHC.Generics (Generic)
 import           Network.HostName (getHostName)
 import           Prelude hiding (id)
-import           Servant.Common.BaseUrl (InvalidBaseUrlException, parseBaseUrl)
 import           System.Random (randomIO)
 
-import           Blockchain.Config (BlockchainConfig(..))
+import           Blockchain.Node.Config (BlockchainConfig(..))
 import           Logger
-
+import           NetworkUtil (isValidUrl)
 
 infoL, warningL :: (MonadIO m) => String -> m ()
-[infoL, warningL] = getLogger "Blockchain" [INFO, WARNING]
+[infoL, warningL] = getLogger "Blockchain.Node.Core" [INFO, WARNING]
 
 -- | Blockchain application environment
 -- TODO move Blockchain datatype into reader monad
@@ -117,7 +115,7 @@ data Blockchain = Blockchain {
   currentTransactions :: TVar [Transaction],  -- ^ Current transactions (to be included in the next block)
   blocks              :: TVar [Block],        -- ^ The list of valid blocks
   uuid                :: !Text,               -- ^ This node UUID
-  nodes               :: TVar (S.Set Node),    -- ^ Nodes set
+  nodes               :: TVar (S.Set Node),   -- ^ Nodes set
   hostName            :: !String              -- ^ This node hostname
 } deriving (Eq)
 
@@ -146,8 +144,9 @@ instance FromJSON BS.ByteString where
 data Transaction = Transaction {
   sender      :: !Text,   -- ^ Sender address
   recipient   :: !Text,   -- ^ Recipient address
-  amount      :: !Int     -- ^ Transferred amount
-} deriving (Show, Eq, Generic)
+  amount      :: !Int,     -- ^ Transferred amount
+  time        :: !UTCTime
+} deriving (Ord, Show, Eq, Generic)
 
 instance ToJSON Transaction
 instance FromJSON Transaction
@@ -196,8 +195,9 @@ genesisBlock = Block {
 newTransaction :: Text                  -- ^ Sender address
                -> Text                  -- ^ Recipient address
                -> Int                   -- ^ Transfer amount
+               -> UTCTime               -- ^ Transaction time
                -> BlockchainApp Int     -- ^ Blockchain along with the index of the next-to-be-mined block
-newTransaction sender recipient amount = addTransaction $ Transaction sender recipient amount
+newTransaction sender recipient amount time = addTransaction $ Transaction sender recipient amount time
 
 
 -- | Adds new transaction to the transactions list, which will be added to the next block
@@ -259,16 +259,7 @@ getMiningReward :: UTCTime -> BlockchainApp Transaction
 getMiningReward time = do
   reward <- miningReward <$> ask
   recipientAddress <- uuid <$> get
-  return $ Transaction "0" recipientAddress reward
-
-
-isValidUrl :: (MonadIO m) => Text -> m Bool
-isValidUrl url = liftIO $ catch
-    (parseBaseUrl (unpack url) >> return True)
-    handler
-    where
-      handler :: InvalidBaseUrlException -> IO Bool
-      handler _ = return False
+  return $ Transaction "0" recipientAddress reward time
 
 -- | Adds nodes to the node list in the blockchain
 -- Returns `True` when

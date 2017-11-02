@@ -2,7 +2,7 @@
 {-# LANGUAGE TypeOperators #-}
 -----------------------------------------------------------------------------
 -- |
--- Module      :  Blockchain.RestApi
+-- Module      :  Blockchain.Node.RestApi
 -- Copyright   :  (c) carbolymer
 -- License     :  Apache-2.0
 --
@@ -12,15 +12,15 @@
 -- Defines REST API for the node
 --
 -----------------------------------------------------------------------------
-module Blockchain.RestApi (
+module Blockchain.Node.RestApi (
     RestApi
   , restApi
 ) where
 
 import Servant ((:>), (:<|>)(..), Get, JSON, Post, Proxy(..), ReqBody)
 
-import Blockchain.Core (Block, Node, Transaction,)
-import Blockchain.Service (HealthCheck(..), StatusMessage)
+import Blockchain.Node.Core (Block, Node, Transaction,)
+import Blockchain.Node.Service (HealthCheck(..), StatusMessage)
 
 
 -- | The definition of the node API

@@ -5,19 +5,33 @@ services:
     build:
       context: .
       dockerfile: Dockerfile-build
-    tty: true
     volumes:
       - .stack:/home/buildusr/.stack
       - .:/workspace
     entrypoint:
       - /bin/sh
       - -c
-      - 'stack clean && stack-build-static upx'
+      - 'stack clean && stack-build-static'
 
-  node:
+  beacon-node:
     image: blockchain-node
     build:
       context: .
       dockerfile: Dockerfile-run
+    hostname: beacon-node
+
+  ui:
+    image: blockchain-node
+    build:
+      context: .
+      dockerfile: Dockerfile-run
+    restart: on-failure
+    depends_on:
+      - beacon-node
     ports:
       - "8000:8000"
+    entrypoint:
+      - /usr/local/bin/blockchain-ui-exe
+      - "8000"
+      - "http://172.20.0.2:8000/"
+      - "/srv"

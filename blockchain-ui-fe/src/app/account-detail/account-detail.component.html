@@ -1,0 +1,32 @@
+<h2>Account details for: {{account.accountId}}</h2>
+
+<div>
+  Total balance: {{account.balance}} &#8373;
+</div>
+
+<div>
+  <h3>New transaction</h3>
+  <label for="recipient">Recipient:</label>
+  <select id="recipient" [(ngModel)]="recipientId">
+    <option></option>
+    <option *ngFor="let recipientAccount of allAccounts" [value]="recipientAccount.accountId">{{recipientAccount.accountId}}</option>
+  </select>
+  <label for="amount">Amount:</label>
+  <input id="amount" [(ngModel)]="transferAmount">
+  <button (click)="createTransaction()" [(disabled)]="!recipientId || !transferAmount">Send</button>
+</div>
+
+
+<h3>History of transactions</h3>
+<table border="1">
+  <tr>
+    <th>Sender / Recipient</th>
+    <th>Amount</th>
+    <th>Time</th>
+  </tr>
+  <tr *ngFor="let transaction of transactions">
+    <td>{{transaction.otherAddress === '0' ? '&laquo;&nbsp;mining&nbsp;reward&nbsp;&raquo;' : transaction.otherAddress}}</td>
+    <td>{{transaction.amount}}</td>
+    <td>{{transaction.time | date: 'medium'}}</td>
+  </tr>
+</table>

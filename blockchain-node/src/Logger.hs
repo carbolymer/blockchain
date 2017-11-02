@@ -15,6 +15,7 @@ module Logger (Level(..), getLogger) where
 
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Time (defaultTimeLocale, formatTime, getZonedTime)
+import System.IO (hFlush, stderr, stdout)
 
 
 logMessage :: (MonadIO m) => String -> Level -> String -> m ()
@@ -22,10 +23,13 @@ logMessage !moduleName !level !message = liftIO $ do
   currentTime <- message `seq` getZonedTime
   let formattedTime = formatTime defaultTimeLocale "%F %T" currentTime
   putStrLn $! formattedTime ++ " " ++ (show level) ++ " [" ++ moduleName ++ "] " ++ message
+  hFlush stderr
+  hFlush stdout
 
 
 -- | Logging levels
-data Level = INFO     -- ^ Info
+data Level = TRACE    -- ^ Trace
+           | INFO     -- ^ Info
            | WARNING  -- ^ Warning
            | ERROR    -- ^ Error
            deriving (Show, Eq)

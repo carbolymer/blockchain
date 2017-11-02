@@ -15,10 +15,11 @@
 --
 -----------------------------------------------------------------------------
 
-module Blockchain.Service (
+module Blockchain.Node.Service (
     BlockchainService(..)
   , HealthCheck(..)
   , HealthStatus(..)
+  , MessageLevel(..)
   , StatusMessage(..)
 ) where
 
@@ -27,7 +28,7 @@ import           Data.Aeson (FromJSON, ToJSON)
 import           Data.Text (Text)
 import           GHC.Generics (Generic)
 
-import Blockchain.Core (Block, Node, Transaction)
+import           Blockchain.Node.Core (Block, Node, Transaction)
 
 -- | Value of node health
 data HealthStatus = OK  -- ^ All systems running
@@ -39,15 +40,25 @@ instance FromJSON HealthStatus
 
 -- | DTO for `HealthStatus`
 data HealthCheck = HealthCheck {
-  health :: HealthStatus    -- ^ Returns health status
+  health :: !HealthStatus    -- ^ Returns health status
 } deriving (Eq, Show, Generic)
 
 instance ToJSON HealthCheck
 instance FromJSON HealthCheck
 
+-- | Represents priority level of the status message
+data MessageLevel = INFO    -- ^ Information
+                  | ERROR   -- ^ Error message
+                  deriving (Eq, Show, Generic)
+
+instance ToJSON MessageLevel
+instance FromJSON MessageLevel
+
+
 -- | DTO with status message
-newtype StatusMessage = StatusMessage {
-  message :: Text   -- ^ The status message
+data StatusMessage = StatusMessage {
+  level   :: !MessageLevel, -- ^ Message level
+  message :: !Text          -- ^ The status message
 } deriving (Eq, Show, Generic)
 
 instance ToJSON StatusMessage

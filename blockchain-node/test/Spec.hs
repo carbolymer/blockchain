@@ -1,10 +1,10 @@
 import           Data.Time (getCurrentTime)
 import           Test.Hspec
 
-import           Blockchain.Config (BlockchainConfig(..), defaultConfig)
-import           Blockchain.Core (Blockchain(..), Block(..), Node(..), evalApp, getLength, mineNewBlock, newBlockchain, newTransaction, runApp, sha256Hash)
-import qualified Blockchain.Service as Service
-import           Blockchain.Service.Server (newBlockchainServiceHandle)
+import           Blockchain.Node.Config (BlockchainConfig(..), defaultConfig)
+import           Blockchain.Node.Core (Blockchain(..), Block(..), Node(..), evalApp, getLength, mineNewBlock, newBlockchain, newTransaction, runApp, sha256Hash)
+import qualified Blockchain.Node.Service as Service
+import           Blockchain.Node.Service.Server (newBlockchainServiceHandle)
 
 testConfig :: BlockchainConfig
 testConfig = defaultConfig { miningDifficulty = 2 }
@@ -31,7 +31,7 @@ main = hspec $ do
       -- blockchain with 1 current transaction
       currentBlockchain <- newBlockchain
       let createNewTransactionAndNewBlock currentTime = do
-                    _ <- newTransaction "sender" "recipient" 1
+                    _ <- newTransaction "sender" "recipient" 1 currentTime
                     mineNewBlock currentTime
       (newBlock, _) <- runApp testConfig (createNewTransactionAndNewBlock currentTime) currentBlockchain
       (length <$> transactions <$> newBlock) `shouldBe` Just 2

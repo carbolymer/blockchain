@@ -4,7 +4,7 @@
 {-# LANGUAGE MonoLocalBinds #-}
 -----------------------------------------------------------------------------
 -- |
--- Module      :  Blockchain.RestApi
+-- Module      :  Blockchain.Node.RestApi.Client
 -- Copyright   :  (c) carbolymer
 -- License     :  Apache-2.0
 --
@@ -14,7 +14,7 @@
 -- Defines REST API for the node
 --
 -----------------------------------------------------------------------------
-module Blockchain.RestApi.Client (
+module Blockchain.Node.RestApi.Client (
     NodeRequest (..)
   , RequestException
   , newBlockchainRestApiClient
@@ -23,7 +23,7 @@ module Blockchain.RestApi.Client (
 
 
 import Control.Monad.Catch (Exception, try)
-import Control.Monad.IO.Class (liftIO)
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Trans.Except (ExceptT(..), runExceptT, withExceptT)
 import Control.Concurrent.Async (forConcurrently)
 import Data.Text (unpack)
@@ -33,9 +33,9 @@ import Servant ((:<|>)(..))
 import Servant.Client (ClientEnv(..), ClientM, ServantError, client, runClientM)
 import Servant.Common.BaseUrl (BaseUrl, InvalidBaseUrlException, parseBaseUrl)
 
-import Blockchain.Core (BlockchainApp, Node(..))
-import Blockchain.Service (BlockchainService(..))
-import Blockchain.RestApi (restApi)
+import Blockchain.Node.Core (Node(..))
+import Blockchain.Node.Service (BlockchainService(..))
+import Blockchain.Node.RestApi (restApi)
 
 
 -- | Creates new Blockchain REST api client
@@ -60,17 +60,16 @@ data NodeRequest a = NodeRequest {
 
 
 -- | Processes list of node requests and returns a list of results or request exceptions
-runRequests :: [NodeRequest a] -> BlockchainApp ([Either RequestException a])
+runRequests :: (MonadIO m) => [NodeRequest a] -> m [Either RequestException a]
 runRequests requests = do
   -- TODO store manager in the app state maybe?
   manager <- liftIO $ newManager defaultManagerSettings
---   nodes <- liftIO =<< readTVarIO <$> nodes <$> get
   liftIO $ forConcurrently requests $ \request -> runExceptT $ do
     nodeUrl <- getNodeUrl request
     runClientExT (nodeRequest request) (ClientEnv manager nodeUrl)
   where
     getNodeUrl :: NodeRequest a -> ExceptT RequestException IO BaseUrl
-    getNodeUrl request = (toRequestException :: ExceptionMapperT InvalidBaseUrlException a) $
+    getNodeUrl request = (toRequestException :: ExceptionMapperT InvalidBaseUrlException BaseUrl) $
         try $ parseBaseUrl $ unpack $ url $ targetNode request
 
     runClientExT :: ClientM a -> ClientEnv -> ExceptT RequestException IO a

@@ -2,8 +2,8 @@ module Main where
 
 import System.Environment (getArgs)
 
-import Blockchain.RestApi.Server (bootstrap)
-import Blockchain.Config (BlockchainConfig(..), defaultConfig)
+import Blockchain.Node.RestApi.Server (bootstrap)
+import Blockchain.Node.Config (BlockchainConfig(..), defaultConfig)
 
 config :: BlockchainConfig
 config = defaultConfig

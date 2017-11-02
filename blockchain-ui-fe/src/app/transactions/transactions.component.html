@@ -1,0 +1,19 @@
+<h2>List of transactions</h2>
+
+<table border="1">
+  <tr>
+    <th>Sender</th>
+    <th>Recipient</th>
+    <th>Amount</th>
+    <th>Time</th>
+  </tr>
+  <tr *ngFor="let transaction of transactions">
+    <td>
+      <a *ngIf="transaction.sender !== '0'" routerLink="/account/{{transaction.sender}}">{{transaction.sender}}</a>
+      <span *ngIf="transaction.sender === '0'">&laquo;&nbsp;mining&nbsp;reward&nbsp;&raquo;</span>
+    </td>
+    <td><a routerLink="/account/{{transaction.recipient}}">{{transaction.recipient}}</a></td>
+    <td>{{transaction.amount}}</td>
+    <td>{{transaction.time | date: 'medium'}}</td>
+  </tr>
+</table>

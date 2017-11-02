@@ -1,0 +1,12 @@
+<h2>List of accounts</h2>
+
+<table border="1">
+  <tr>
+    <th>Account</th>
+    <th>Balance</th>
+  </tr>
+  <tr *ngFor="let account of accounts">
+    <td><a routerLink="/account/{{account.accountId}}">{{account.accountId}}</a></td>
+    <td>{{account.balance}}</td>
+  </tr>
+</table>
