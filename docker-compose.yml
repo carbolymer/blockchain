@@ -11,17 +11,17 @@ services:
     entrypoint:
       - /bin/sh
       - -c
-      - 'stack clean && stack-build-static'
+      - 'stack --install-ghc clean && (cd blockchain-ui-fe && npm install && ng build --prod) && stack-build-static'
 
   beacon-node:
-    image: blockchain-node
+    image: carbolymer/blockchain-node
     build:
       context: .
       dockerfile: Dockerfile-run
     hostname: beacon-node
 
   ui:
-    image: blockchain-node
+    image: carbolymer/blockchain-node
     build:
       context: .
       dockerfile: Dockerfile-run

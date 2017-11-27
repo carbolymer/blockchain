@@ -28,8 +28,8 @@ export class TransactionsComponent implements OnInit, OnDestroy {
     this.refreshSubscription.unsubscribe();
   }
 
-  private getTransactions() {
+  private getTransactions(): void {
     this.transactionService.getTransactions()
-      .subscribe(transactions => this.transactions = transactions);
+      .subscribe(transactions => this.transactions = transactions.sort((tx1, tx2) => tx2.time.getTime() - tx1.time.getTime()));
   }
 }

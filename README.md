@@ -1,16 +1,28 @@
-# Blockchain
+# Blockchain [![Build Status](https://travis-ci.org/carbolymer/blockchain.svg?branch=master)](https://travis-ci.org/carbolymer/blockchain)
 
 ![Screenshot of web UI](https://i.imgur.com/J39ZDdk.png)
 
 Just a simple implementation of the blockchain, inspired by the article: https://hackernoon.com/learn-blockchains-by-building-one-117428612f46
 
+## How to build
+
+1. You have to have Docker and Docker Compose installed.
+2. Execute following command in the project root directory to download the docker image
+```
+docker pull carbolymer/blockchain-node
+```
+3. Start the blockchain node with UI
+```
+docker-compose up -d ui
+````
+4. Open url `http://localhost:8000` in browser
+
+
 ## How to run
 
 1. You have to have Docker and Docker Compose installed.
-2. Frontend requires Angular CLI installed.
-2. Execute following commands in the project root directory to build the project
+2. Execute following command in the project root directory to build the project
 ```
-( cd blockchain-ui-fe ; ng build --prod )
 docker-compose run --rm build
 ```
 3. Start the blockchain node
@@ -38,7 +50,6 @@ The node is listening on `8000` port and the following endpoints are available:
 
 
 ## TODO
-* [ ] Travis CI integration
 * [ ] Web UI
     - [x] Basic UI
     - [ ] Styles

@@ -2,7 +2,7 @@ import {Injectable} from '@angular/core';
 import {HttpClient, HttpHeaders} from "@angular/common/http";
 import {Transaction} from "./Transaction";
 import {Observable} from "rxjs/Observable";
-import {catchError} from "rxjs/operators";
+import {catchError, map} from "rxjs/operators";
 import {handleError} from "./util";
 import {MessageLevel, StatusMessage} from "./StatusMessage";
 
@@ -21,6 +21,10 @@ export class TransactionService {
   getTransactions(): Observable<Transaction[]> {
     return this.httpService.get<Transaction[]>(this.transactionsUrl)
       .pipe(
+        map(transactions => {
+          transactions.forEach(transaction => transaction.time = new Date(transaction.time))
+          return transactions;
+        }),
         catchError(handleError('getTransactions', []))
       );
   }
@@ -31,7 +35,7 @@ export class TransactionService {
         catchError(handleError<StatusMessage>('newTransaction', {
           level: MessageLevel.ERROR,
           message: 'Could not send request with the new transaction'
-          }))
+        }))
       );
   }
 }

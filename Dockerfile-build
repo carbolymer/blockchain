@@ -1,7 +1,18 @@
 FROM carbolymer/haskell:stack-1.5.1
+ENV NODEJS_VERSION  8.9.1
+ENV PATH            $PATH:/opt/node/bin
 WORKDIR /workspace
-RUN groupadd -g 1000 buildusr && \
+RUN apt update && apt install -y wget && rm -rf /var/lib/apt/lists/* /usr/share/man/* && \
+    cd /tmp && \
+    wget https://nodejs.org/dist/v${NODEJS_VERSION}/node-v${NODEJS_VERSION}-linux-x64.tar.xz && \
+    tar -xvf node-v${NODEJS_VERSION}-linux-x64.tar.xz && rm node-v${NODEJS_VERSION}-linux-x64.tar.xz && \
+    mv /tmp/node-v${NODEJS_VERSION}-linux-x64/ /opt/node && chown -R root:root /opt/node  && \
+    chmod +x /opt/node/bin/* && \
+    apt-get purge -y --auto-remove wget && \
+    groupadd -g 1000 buildusr && \
     useradd -u 1000 -g buildusr buildusr && \
     mkdir -p /home/buildusr/.stack && \
-    chown -R buildusr:buildusr /home/buildusr
+    echo "PATH=$PATH" >> /home/buildusr/.profile && \
+    chown -R buildusr:buildusr /home/buildusr && \
+    npm install -g @angular/cli
 USER buildusr:buildusr

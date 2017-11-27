@@ -1,0 +1,20 @@
+sudo: required
+
+language: c
+
+services:
+  - docker
+
+before_install:
+  - docker-compose build build
+  - sudo chown -R 1000:1000 .
+
+script:
+  - docker-compose run --rm build
+  - docker-compose build ui
+
+after_success:
+  - if [ "$TRAVIS_BRANCH" == "master" ]; then
+    docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD";
+    docker push carbolymer/blockchain-node;
+    fi
