@@ -12,6 +12,8 @@ import "rxjs/add/operator/mergeMap";
   providers: []
 })
 export class AppComponent implements OnInit {
+  fullPath: string = '';
+
   constructor(private router: Router,
               private activatedRoute: ActivatedRoute,
               private titleService: Title) {}
@@ -28,6 +30,9 @@ export class AppComponent implements OnInit {
       })
       .filter(route => route.outlet === 'primary')
       .mergeMap(route => route.data)
-      .subscribe(event => this.titleService.setTitle(event['title']));
+      .subscribe(event => {
+        this.fullPath = window.location.origin + window.location.pathname;
+        this.titleService.setTitle(event['title']);
+      });
   }
 }

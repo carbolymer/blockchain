@@ -1,32 +1,81 @@
-<h2>Account details for: {{account.accountId}}</h2>
-
-<div>
-  Total balance: {{account.balance}} &#8373;
+<h2 class="header teal-text text-darken-2">Account details</h2>
+<div clas="row">
+  <div class="col s12">
+    <div id="account-info-card" class="card teal darken-2 hoverable right">
+      <div class="card-content white-text right-align">
+        <div>account id</div>
+        <div id="account-id">{{account.accountId}}</div>
+        <div>coins</div>
+        <div id="account-balance">{{account.balance}}</div>
+      </div>
+      <div class="card-action right-align">
+        <a class="btn waves-effect waves-teal white modal-trigger"
+           (click)="openModal()">new transaction</a>
+      </div>
+    </div>
+  </div>
 </div>
 
-<div>
-  <h3>New transaction</h3>
-  <label for="recipient">Recipient:</label>
-  <select id="recipient" [(ngModel)]="recipientId">
-    <option></option>
-    <option *ngFor="let recipientAccount of allAccounts" [value]="recipientAccount.accountId">{{recipientAccount.accountId}}</option>
-  </select>
-  <label for="amount">Amount:</label>
-  <input id="amount" [(ngModel)]="transferAmount">
-  <button (click)="createTransaction()" [(disabled)]="!recipientId || !transferAmount">Send</button>
+<div id="newTransactionModal"
+     class="modal modal-fixed-footer"
+     materialize="modal"
+     [materializeParams]="[{dismissible: false}]"
+     [materializeActions]="modalActions">
+  <div class="modal-content">
+    <h4>New transaction</h4>
+    <div class="input-field row">
+      <select id="recipient" [(ngModel)]="recipientId" materialize="material_select" [materializeSelectOptions]="allAccounts">
+        <option></option>
+        <option *ngFor="let recipientAccount of allAccounts" [value]="recipientAccount.accountId">{{recipientAccount.accountId}}
+        </option>
+      </select>
+      <label for="recipient">Recipient:</label>
+    </div>
+    <div class="input-field row">
+      <input id="amount" [(ngModel)]="transferAmount" type="text">
+      <label for="amount">Amount:</label>
+    </div>
+    <div class="row">
+      <p>Transaction will be added to the new transactions queue. After mining new block, the transaction after verification will be added
+        to the blockchain.</p>
+    </div>
+  </div>
+
+  <div class="modal-footer">
+    <button class="btn left-align"
+            (click)="createTransaction()"
+            [(disabled)]="!recipientId || !transferAmount">Send
+    </button>
+    <a class="waves-effect waves-teal btn-flat"
+       (click)="closeModal()">Close</a>
+  </div>
 </div>
 
-
-<h3>History of transactions</h3>
-<table border="1">
-  <tr>
-    <th>Sender / Recipient</th>
-    <th>Amount</th>
-    <th>Time</th>
-  </tr>
-  <tr *ngFor="let transaction of transactions">
-    <td>{{transaction.otherAddress === '0' ? '&laquo;&nbsp;mining&nbsp;reward&nbsp;&raquo;' : transaction.otherAddress}}</td>
-    <td>{{transaction.amount}}</td>
-    <td>{{transaction.time | date: 'medium'}}</td>
-  </tr>
-</table>
+<div class="row">
+  <div class="col s12">
+    <h4 class="header teal-text text-darken-2">History of transactions</h4>
+    <p>Contains only verified transactions (transactions stored inside the blockchain).</p>
+    <table class="bordered highlight">
+      <thead>
+      <tr>
+        <th>Sender / Recipient</th>
+        <th>Amount</th>
+        <th>Balance</th>
+        <th>Time</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr *ngFor="let transaction of transactions">
+        <td>
+          <span *ngIf="transaction.otherAddress === '0'"
+                class="teal-text text-lighten-1">&laquo;&nbsp;mining&nbsp;reward&nbsp;&raquo;</span>
+          <span *ngIf="transaction.otherAddress !== '0'">{{transaction.otherAddress}}</span>
+        </td>
+        <td>{{transaction.amount}}</td>
+        <td>{{transaction.balance}}</td>
+        <td>{{transaction.time | date: 'medium'}}</td>
+      </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

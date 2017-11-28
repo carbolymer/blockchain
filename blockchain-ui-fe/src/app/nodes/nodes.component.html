@@ -1,16 +1,27 @@
-<h2>List of nodes in the network</h2>
+<h2 class="header teal-text text-darken-4">List of nodes in the network</h2>
 
-<table border="1">
+<table class="bordered highlight">
+  <thead>
   <tr>
     <th>Node name</th>
     <th>Valid chain length</th>
   </tr>
+  </thead>
+  <tbody>
   <tr *ngFor="let node of nodes">
     <td>{{node.id}}</td>
     <td>{{node.validChainLength}}</td>
-    <td><button id="mine-{{node.id}}" (click)="mine(node, $event)" [disabled]="currentlyMiningNodesIds.has(node.id)">mine</button></td>
+    <td>
+      <button
+        id="mine-{{node.id}}"
+        (click)="mine(node, $event)"
+        [disabled]="currentlyMiningNodesIds.has(node.id)"
+        class="btn waves-effect waves-light">mine new block</button>
+    </td>
   </tr>
   <tr *ngIf="nodes.length === 0">
     <td colspan="3">There are no active nodes</td>
   </tr>
+  </tbody>
 </table>
+

@@ -1,0 +1,34 @@
+div#account-info-card {
+  width: 600px;
+  text-transform: uppercase;
+  font-weight: 300;
+}
+
+#account-id {
+  font-size: 2rem;
+  font-weight: 300;
+}
+
+#account-balance {
+  font-size: 2.5rem;
+  font-weight: 400;
+}
+
+div#account-info-card a {
+  font-weight: 400;
+  color: #000;
+}
+
+
+#newTransactionModal {
+  max-width: 40em;
+  max-height: 37em;
+}
+
+#newTransactionModal div.modal-content {
+  padding: 4em;
+}
+
+#newTransactionModal div.modal-content > h4 {
+  margin: -0.5em 0 2.3em -0.5em;
+}

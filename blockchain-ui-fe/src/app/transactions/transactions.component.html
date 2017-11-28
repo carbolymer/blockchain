@@ -1,12 +1,15 @@
-<h2>List of transactions</h2>
-
-<table border="1">
+<h2 class="header teal-text text-darken-4">List of transactions</h2>
+<p>Shows only verified transactions (transactions stored inside the block).</p>
+<table class="bordered highlight">
+  <thead>
   <tr>
     <th>Sender</th>
     <th>Recipient</th>
     <th>Amount</th>
     <th>Time</th>
   </tr>
+  </thead>
+  <tbody>
   <tr *ngFor="let transaction of transactions">
     <td>
       <a *ngIf="transaction.sender !== '0'" routerLink="/account/{{transaction.sender}}">{{transaction.sender}}</a>
@@ -16,4 +19,5 @@
     <td>{{transaction.amount}}</td>
     <td>{{transaction.time | date: 'medium'}}</td>
   </tr>
+  </tbody>
 </table>

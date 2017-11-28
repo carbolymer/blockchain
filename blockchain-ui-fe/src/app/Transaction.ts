@@ -9,6 +9,7 @@ export class Transaction {
 export class TransactionHistoryEntry {
   constructor(public otherAddress: string,
               public amount: number,
+              public balance: number,
               public time: Date) {
   }
 }

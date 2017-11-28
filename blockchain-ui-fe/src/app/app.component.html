@@ -1,7 +1,20 @@
-<h1>Blockchain</h1>
-<nav>
-  <a routerLink="/nodes">Nodes</a>
-  <a routerLink="/transactions">Transactions</a>
-  <a routerLink="/accounts">Accounts</a>
+<nav class="teal darken-4">
+  <div class="nav-wrapper">
+    <a href="{{fullPath}}#" class="brand-logo"><i class="material-icons">memory</i>Blockchain</a>
+    <a materialize="sideNav" href="{{fullPath}}#" data-activates="nav-mobile"
+       class="button-collapse"><i class="material-icons">menu</i></a>
+    <ul class="right hide-on-med-and-down">
+      <li routerLinkActive="active"><a routerLink="/nodes">Nodes</a></li>
+      <li routerLinkActive="active"><a routerLink="/transactions">Transactions</a></li>
+      <li routerLinkActive="active"><a routerLink="/accounts">Accounts</a></li>
+    </ul>
+    <ul id="nav-mobile" class="side-nav">
+      <li routerLinkActive="active"><a routerLink="/nodes">Nodes</a></li>
+      <li routerLinkActive="active"><a routerLink="/transactions">Transactions</a></li>
+      <li routerLinkActive="active"><a routerLink="/accounts">Accounts</a></li>
+    </ul>
+  </div>
 </nav>
-<router-outlet></router-outlet>
+<div class="container">
+  <router-outlet></router-outlet>
+</div>

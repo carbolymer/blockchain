@@ -1,1 +1,25 @@
-/* You can add global styles to this file, and also import other style files */
+body {
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+}
+
+main {
+  flex: 1 0 auto;
+}
+
+.page-content {
+  margin: 0 20px 0 20px;
+}
+
+.page-footer {
+  padding-bottom: 20px;
+}
+
+.brand-logo > i {
+  margin-left: 20px;
+}
+
+nav ul a {
+  font-weight: 500;
+}

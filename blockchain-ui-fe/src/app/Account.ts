@@ -13,7 +13,7 @@ export function getTransactionHistory(account: Account): TransactionHistoryEntry
     if (transaction.recipient === account.accountId
       && transaction.sender === account.accountId) {
       const shiftedDate = new Date(new Date(transaction.time).getTime() - 1);
-      entries.push(new TransactionHistoryEntry(account.accountId, -transaction.amount, shiftedDate));
+      entries.push(new TransactionHistoryEntry(account.accountId, -transaction.amount, 0, shiftedDate));
     }
 
     let otherAddress: string, amount: number;
@@ -26,7 +26,18 @@ export function getTransactionHistory(account: Account): TransactionHistoryEntry
     } else {
       throw `Unexpected transaction in account: ${transaction}`;
     }
-    entries.push(new TransactionHistoryEntry(otherAddress, amount, new Date(transaction.time)));
+    entries.push(new TransactionHistoryEntry(otherAddress, amount, 0, new Date(transaction.time)));
     return entries;
-  });
+  })
+    .sort((tx1, tx2) => tx2.time.getTime() - tx1.time.getTime())
+    .reduceRight((accumulator: Array<TransactionHistoryEntry>, element: TransactionHistoryEntry) => {
+    if(accumulator.length == 0) {
+      accumulator.push(element)
+    } else {
+      let pv: TransactionHistoryEntry = accumulator[accumulator.length - 1];
+      element.balance = pv.balance + element.amount;
+      accumulator.push(element)
+    }
+    return accumulator;
+  }, []);
 }

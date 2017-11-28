@@ -1,4 +1,4 @@
-import {Component, OnDestroy, OnInit} from '@angular/core';
+import {Component, EventEmitter, OnDestroy, OnInit} from '@angular/core';
 import {ActivatedRoute} from "@angular/router";
 import {AccountService} from "../account.service";
 import {TransactionService} from "../transaction.service";
@@ -6,6 +6,7 @@ import {Transaction, TransactionHistoryEntry} from "../Transaction";
 import {Account, getTransactionHistory} from "../Account";
 import {Location} from "@angular/common";
 import {StatusMessage} from "../StatusMessage";
+import {MaterializeAction} from "angular2-materialize";
 
 @Component({
   selector: 'app-account-detail',
@@ -18,6 +19,8 @@ export class AccountDetailComponent implements OnInit, OnDestroy {
   recipientId: string = '';
   transferAmount?: number = null;
   transactions: TransactionHistoryEntry[] = [];
+  fullPath: string = '';
+  modalActions: EventEmitter<string | MaterializeAction> = new EventEmitter<string | MaterializeAction>();
 
   constructor(private route: ActivatedRoute,
               private accountService: AccountService,
@@ -34,7 +37,7 @@ export class AccountDetailComponent implements OnInit, OnDestroy {
         if (thisAccount.length === 1) {
           this.account = thisAccount[0];
           this.transactions = getTransactionHistory(this.account)
-            // descending
+          // descending
             .sort((tx1, tx2) => tx2.time.getTime() - tx1.time.getTime());
           this.allAccounts = accounts;
         } else if (thisAccount.length == 0) {
@@ -43,6 +46,8 @@ export class AccountDetailComponent implements OnInit, OnDestroy {
           throw `unexpected number of accounts: ${thisAccount}`;
         }
       });
+
+    this.fullPath = window.location.origin + window.location.pathname;
   }
 
   resetNewTransactionForm() {
@@ -57,6 +62,17 @@ export class AccountDetailComponent implements OnInit, OnDestroy {
   createTransaction(): void {
     // TODO generate date on backend to avoid spoofing
     this.transactionService.newTransaction(new Transaction(Number(this.transferAmount), this.account.accountId, this.recipientId, new Date()))
-      .subscribe((statusMessage: StatusMessage) => console.log(statusMessage));
+      .subscribe((statusMessage: StatusMessage) => {
+        console.log(statusMessage);
+        this.closeModal();
+      });
+  }
+
+  openModal(): void {
+    this.modalActions.emit({action: "modal", params: ['open']});
+  }
+
+  closeModal(): void {
+    this.modalActions.emit({action: "modal", params: ['close']});
   }
 }

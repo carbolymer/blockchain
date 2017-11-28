@@ -1,3 +1,4 @@
+import {MaterializeModule} from 'angular2-materialize';
 import {BrowserModule} from '@angular/platform-browser';
 import {NgModule} from '@angular/core';
 
@@ -28,6 +29,7 @@ import {AccountDetailComponent} from './account-detail/account-detail.component'
     FormsModule,
     AppRoutingModule,
     HttpClientModule,
+    MaterializeModule
   ],
   providers: [NodeService, TransactionService, AccountService],
   bootstrap: [AppComponent]
