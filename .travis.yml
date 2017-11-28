@@ -5,7 +5,12 @@ language: c
 services:
   - docker
 
+cache:
+  directories:
+    - .stack/
+
 before_install:
+  - sudo chmod -R 777 .
   - docker-compose build build
   - sudo chown -R 1000:1000 .
 

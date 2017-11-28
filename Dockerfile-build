@@ -1,4 +1,4 @@
-FROM carbolymer/haskell:stack-1.5.1
+FROM carbolymer/haskell:stack-1.5.1-1
 ENV NODEJS_VERSION  8.9.1
 ENV PATH            $PATH:/opt/node/bin
 WORKDIR /workspace
