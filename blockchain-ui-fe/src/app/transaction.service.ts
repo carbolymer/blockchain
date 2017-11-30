@@ -22,8 +22,8 @@ export class TransactionService {
     return this.httpService.get<Transaction[]>(this.transactionsUrl)
       .pipe(
         map(transactions => {
-          transactions.forEach(transaction => transaction.time = new Date(transaction.time))
-          return transactions;
+          transactions.forEach(transaction => transaction.time = new Date(transaction.time));
+          return transactions.sort((tx1, tx2) => tx2.time.getTime() - tx1.time.getTime());;
         }),
         catchError(handleError('getTransactions', []))
       );
@@ -32,6 +32,13 @@ export class TransactionService {
   newTransaction(transaction: Transaction): Observable<StatusMessage> {
     return this.httpService.post<StatusMessage>(`${this.transactionsUrl}/new`, transaction, httpOptions)
       .pipe(
+        map((messageDto: any) => {
+            return new StatusMessage(
+              MessageLevel[(<string>messageDto.level)],
+              messageDto.message
+            );
+          }
+        ),
         catchError(handleError<StatusMessage>('newTransaction', {
           level: MessageLevel.ERROR,
           message: 'Could not send request with the new transaction'

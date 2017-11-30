@@ -2,8 +2,10 @@ import {Injectable} from '@angular/core';
 import {Observable} from "rxjs/Observable";
 import {Node} from "./Node"
 import {HttpClient} from "@angular/common/http";
-import {catchError} from "rxjs/operators";
+import {catchError, map} from "rxjs/operators";
 import {handleError} from "./util";
+import {MessageLevel, StatusMessage} from "./StatusMessage";
+import {Status} from "tslint/lib/runner";
 
 @Injectable()
 export class NodeService {
@@ -20,10 +22,20 @@ export class NodeService {
       );
   }
 
-  mine(node: Node) {
-    return this.httpService.post(`${this.nodesUrl}/mine/${node.id}`, null)
+  mine(node: Node): Observable<StatusMessage> {
+    return this.httpService.post<StatusMessage>(`${this.nodesUrl}/mine/${node.id}`, null)
       .pipe(
-        catchError(handleError('mine', []))
+        map((messageDto: any) => {
+            return new StatusMessage(
+              MessageLevel[(<string>messageDto.level)],
+              messageDto.message
+            );
+          }
+        ),
+        catchError(handleError<StatusMessage>('mine', {
+          level: MessageLevel.ERROR,
+          message: 'Could not send mining request'
+        }))
       );
   }
 }

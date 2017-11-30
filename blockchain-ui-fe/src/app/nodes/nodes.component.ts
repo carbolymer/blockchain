@@ -4,6 +4,8 @@ import {timer} from "rxjs/observable/timer";
 import {NodeService} from "../node.service";
 import {Observable} from "rxjs/Observable";
 import {Subscription} from "rxjs/Subscription";
+import {StatusMessage} from "../StatusMessage";
+import {MessageService} from "../message.service";
 
 @Component({
   selector: 'app-nodes',
@@ -18,7 +20,8 @@ export class NodesComponent implements OnInit, OnDestroy {
   private refreshSubscription: Subscription;
 
 
-  constructor(private nodeService: NodeService) {
+  constructor(private nodeService: NodeService,
+              private messageService: MessageService) {
   }
 
   ngOnInit() {
@@ -41,7 +44,10 @@ export class NodesComponent implements OnInit, OnDestroy {
   mine(node: Node): void {
     this.currentlyMiningNodesIds.add(node.id);
     this.nodeService.mine(node)
-      .flatMap(_ => this.getNodes())
+      .flatMap((statusMessage: StatusMessage) => {
+        this.messageService.add(statusMessage);
+        return this.getNodes();
+      })
       .subscribe(_ => {
         this.currentlyMiningNodesIds.delete(node.id);
       });

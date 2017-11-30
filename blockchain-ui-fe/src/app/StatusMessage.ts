@@ -3,6 +3,7 @@ export enum MessageLevel {
 }
 
 export class StatusMessage {
-  level: MessageLevel;
-  message: string;
+  constructor(public level: MessageLevel,
+              public message: string) {
+  }
 }

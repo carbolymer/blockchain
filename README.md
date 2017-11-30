@@ -50,11 +50,9 @@ The node is listening on `8000` port and the following endpoints are available:
 
 
 ## TODO
-* [ ] Web UI
-    - [x] Basic UI
-    - [ ] Styles
 * [ ] Network interaction
     - [ ] automatic registration to the beacon node on start
     - [ ] resolving of nodes in network in background
     - [ ] propagation of nodes list in background
 * [ ] Transactions signing with ECDSA
+* [ ] Transactions validation when mining block

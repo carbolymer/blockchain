@@ -14,6 +14,7 @@ import {NotFoundComponent} from './not-found.component';
 import {TransactionService} from "./transaction.service";
 import {AccountService} from "./account.service";
 import {AccountDetailComponent} from './account-detail/account-detail.component';
+import { MessageService } from './message.service';
 
 @NgModule({
   declarations: [
@@ -31,7 +32,7 @@ import {AccountDetailComponent} from './account-detail/account-detail.component'
     HttpClientModule,
     MaterializeModule
   ],
-  providers: [NodeService, TransactionService, AccountService],
+  providers: [NodeService, TransactionService, AccountService, MessageService],
   bootstrap: [AppComponent]
 })
 export class AppModule {
