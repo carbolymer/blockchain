@@ -20,6 +20,14 @@ services:
       dockerfile: Dockerfile-run
     hostname: beacon-node
 
+  drone-node:
+    image: carbolymer/blockchain-node
+    build:
+      context: .
+      dockerfile: Dockerfile-run
+    depends_on:
+      - beacon-node
+
   ui:
     image: carbolymer/blockchain-node
     build:
@@ -33,5 +41,5 @@ services:
     entrypoint:
       - /usr/local/bin/blockchain-ui-exe
       - "8000"
-      - "http://172.20.0.2:8000/"
+      - "http://beacon-node:8000/"
       - "/srv"

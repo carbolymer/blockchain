@@ -35,6 +35,7 @@ module  Blockchain.Node.Core (
 
   -- * Utility functions
   , addNodes
+  , thisNode
   , getLength
   , calculateProofOfWork
   , isValidBlock
@@ -60,12 +61,12 @@ import qualified Data.Aeson.Types as A
 import           Data.Aeson (FromJSON(parseJSON), ToJSON(toJSON))
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Base16 as B16
-import           Data.ByteString.Char8 (pack)
+import qualified Data.ByteString.Char8 as C8
 import           Data.Foldable (foldr')
 import           Data.List ((\\), foldl', sortBy, tail)
 import           Data.Ord (Ordering(..))
 import qualified Data.Set as S
-import           Data.Text (Text, replace)
+import           Data.Text (Text, replace, pack)
 import qualified Data.Text.Encoding as E
 import           Data.Time.Clock (UTCTime(UTCTime), secondsToDiffTime)
 import           Data.Time.Calendar (fromGregorian)
@@ -278,6 +279,11 @@ addNodes nodesToAdd = do
       unless urlCheckResult $ warningL $ "Invalid node received: " ++ (show node)
       return $ (id node /= uuid blockchain) && urlCheckResult
 
+-- | Retrieves `Node` instance for current node
+thisNode :: BlockchainConfig -> Blockchain -> Node
+thisNode cfg blockchain = Node
+    (uuid blockchain)
+    (pack $ "http://" ++ hostName blockchain ++ ":" ++ (show $ httpPort cfg) ++ "/")
 
 -- | Calculates SHA256 hash of the provided argument
 sha256Hash :: BS.ByteString -> BS.ByteString
@@ -286,7 +292,7 @@ sha256Hash = B16.encode . SHA256.hash
 
 -- | Calculates SHA256 hash of the block
 calculateHash :: (Show a) => a -> BS.ByteString
-calculateHash = sha256Hash . pack . show
+calculateHash = sha256Hash . C8.pack . show
 
 
 -- | Checks if the block is valid i.e. its proof of work meets difficulty requirements
@@ -294,7 +300,7 @@ isValidBlock :: (Show a) => a -- ^ Block to validate
              -> Int           -- ^ Difficulty
              -> Bool          -- ^ `True` if the block is valid, `False` otherwise
 isValidBlock block difficulty = BS.take difficulty (calculateHash block) == pattern
-  where pattern = pack $ replicate difficulty '0'
+  where pattern = C8.pack $ replicate difficulty '0'
 
 
 -- | Calculates Proof of Work for the provided block and mining difficulty. Returns the new valid block with the updated

@@ -14,8 +14,12 @@ docker-compose pull ui
 3. Start the blockchain node with UI
 ```
 docker-compose up -d ui
-````
-4. Open url `http://localhost:8000` in browser
+```
+4. To start next 10 blockchain nodes:
+```
+docker-compose up -d --scale drone-node=10 drone-node
+```
+5. Open url `http://localhost:8000` in browser
 
 
 ## How to build
@@ -25,10 +29,10 @@ docker-compose up -d ui
 ```
 docker-compose run --rm build
 ```
-3. Build and start the blockchain node
+3. Build and start the blockchain UI with the beacon node
 ```
 docker-compose up --build -d ui
-````
+```
 4. Open url `http://localhost:8000` in browser
 
 
@@ -50,9 +54,5 @@ The node is listening on `8000` port and the following endpoints are available:
 
 
 ## TODO
-* [ ] Network interaction
-    - [ ] automatic registration to the beacon node on start
-    - [ ] resolving of nodes in network in background
-    - [ ] propagation of nodes list in background
 * [ ] Transactions signing with ECDSA
 * [ ] Transactions validation when mining block

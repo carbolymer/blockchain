@@ -25,7 +25,7 @@ import           Data.Text (Text, pack, unpack)
 import           GHC.Generics (Generic)
 import           Servant.Client (ClientM)
 
-import           Blockchain.Node.Config (BlockchainConfig(..), defaultConfig)
+import qualified Blockchain.Node.Config as N
 import           Blockchain.Node.Core ((<$$>))
 import qualified Blockchain.Node.Core (Node(..), Transaction(..), isValidChain)
 import           Blockchain.Node.Service (BlockchainService(..), MessageLevel(..), StatusMessage(..))
@@ -118,12 +118,14 @@ queryNodeAndCreateDto app node = do
   let requests = [NodeRequest node (getBlockchain $ restClient app)]
   result <- runRequests requests
   mapM_ (warnL . show) (lefts result)
-  return $ case rights result of
-   [] -> Nothing
-   [chain] -> Just $ case Blockchain.Node.Core.isValidChain (miningDifficulty defaultConfig) chain of
-     True -> dto {validChainLength = length chain}
-     False -> dto
-   _ -> Nothing -- impossible case
+  case rights result of
+   [] -> return Nothing
+   [chain] -> case Blockchain.Node.Core.isValidChain (N.miningDifficulty N.defaultConfig) chain of
+     True -> do
+--         traceL $ "Chain length for: " ++ (show $ Blockchain.Node.Core.id node) ++ ": " ++ (show $ length chain)
+        return $ Just $ dto {validChainLength = length chain}
+     False -> return $ Just dto
+   _ -> return Nothing -- impossible case
 
 
 getTransactionsFromNodes :: AppState -> [Blockchain.Node.Core.Node] -> IO [Blockchain.Node.Core.Transaction]

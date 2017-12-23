@@ -31,7 +31,7 @@ import Data.Typeable (Typeable)
 import Network.HTTP.Client (defaultManagerSettings, newManager)
 import Servant ((:<|>)(..))
 import Servant.Client (ClientEnv(..), ClientM, ServantError, client, runClientM)
-import Servant.Common.BaseUrl (BaseUrl, InvalidBaseUrlException, parseBaseUrl)
+import Servant.Client.Core.Internal.BaseUrl (BaseUrl, InvalidBaseUrlException, parseBaseUrl)
 
 import Blockchain.Node.Core (Node(..))
 import Blockchain.Node.Service (BlockchainService(..))

@@ -15,16 +15,17 @@
 module Blockchain.Node.Service.Server (newBlockchainServiceHandle) where
 
 import           Control.Monad.IO.Class (MonadIO)
+import           Control.Concurrent (forkIO)
 import           Control.Concurrent.STM.TVar (readTVarIO)
 import           Data.Either (rights)
 import qualified Data.Set as S
 import           Data.String (fromString)
 import           Data.Time (getCurrentTime)
-import           Data.Text (pack)
 
 import Blockchain.Node.Config (BlockchainConfig(..))
-import Blockchain.Node.Core ((<$$>), Block(..), Blockchain(..), Node(..), addNodes, addTransaction, evalApp,
-    runApp, mineNewBlock, validateAndUpdateChain)
+import Blockchain.Node.Core ((<$$>), Block(..), Blockchain(..), addNodes, addTransaction, evalApp,
+    runApp, mineNewBlock, thisNode, validateAndUpdateChain)
+import Blockchain.Node.NodesNetwork (NodesNetworkService(..))
 import Blockchain.Node.Service (BlockchainService(..), HealthStatus(..), HealthCheck(..), MessageLevel(..), StatusMessage(..))
 import Blockchain.Node.RestApi.Client (NodeRequest(..), RequestException, newBlockchainRestApiClient, runRequests)
 import qualified Logger
@@ -33,8 +34,19 @@ infoL, warnL :: (MonadIO m) => String -> m ()
 [infoL, warnL] = Logger.getLogger "Blockchain.Node.Service.Server" [Logger.INFO, Logger.WARNING]
 
 -- | Creates new `BlockchainService` handle
-newBlockchainServiceHandle :: BlockchainConfig -> Blockchain -> IO (BlockchainService IO)
-newBlockchainServiceHandle cfg blockchain = return $ BlockchainService {
+newBlockchainServiceHandle :: BlockchainConfig
+                           -> Blockchain
+                           -> NodesNetworkService
+                           -> IO (BlockchainService IO)
+newBlockchainServiceHandle cfg blockchain nodesNetworkService = do
+  -- we can do it in the background
+  _ <- forkIO $ do
+    statusMessage <- registerToBeacon nodesNetworkService
+    infoL $ show statusMessage
+  runBackgroundNodesResolver nodesNetworkService
+  runBackgroundNodesListPropagator nodesNetworkService
+
+  return $ BlockchainService {
     getHealthCheck = return $ HealthCheck OK,
 
     newTransaction = \transaction -> do
@@ -52,10 +64,8 @@ newBlockchainServiceHandle cfg blockchain = return $ BlockchainService {
     getBlockchain = readTVarIO $ blocks blockchain,
 
     getNodes = do
-      let thisNode = Node
-            (uuid blockchain)
-            (pack $ "http://" ++ hostName blockchain ++ ":" ++ (show $ httpPort cfg) ++ "/")
-      ([thisNode] ++) <$> S.toList <$$> readTVarIO $ nodes blockchain,
+      let thisNode' = thisNode cfg blockchain
+      ([thisNode'] ++) <$> S.toList <$$> readTVarIO $ nodes blockchain,
 
     registerNodes = \nodes -> do
       _ <- runApp cfg (addNodes nodes) blockchain

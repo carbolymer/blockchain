@@ -11,7 +11,7 @@ cache:
 
 before_install:
   - sudo chmod -R 777 .
-  - docker-compose build build
+  - docker-compose build build &> /dev/null
   - sudo chown -R 1000:1000 .
 
 script:

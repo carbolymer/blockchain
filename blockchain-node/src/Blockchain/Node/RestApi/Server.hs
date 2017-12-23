@@ -23,6 +23,7 @@ import Servant ((:<|>)(..), Application, Server, serve)
 
 import Blockchain.Node.Core (newBlockchain)
 import Blockchain.Node.Config (BlockchainConfig(..))
+import Blockchain.Node.NodesNetwork (newNodesNetworkServiceHandle)
 import Blockchain.Node.Service (BlockchainService(..))
 import Blockchain.Node.Service.Server (newBlockchainServiceHandle)
 import Blockchain.Node.RestApi (RestApi, restApi)
@@ -61,8 +62,7 @@ bootstrap config = do
 
 makeApplication :: BlockchainConfig -> IO Application
 makeApplication config = do
-  bws <- blockchainService
+  blockchain <- newBlockchain
+  nodesNetworkService <- newNodesNetworkServiceHandle config blockchain
+  bws <- newBlockchainServiceHandle config blockchain nodesNetworkService
   return $ serve restApi (server bws)
-  where
-    blockchainService :: IO (BlockchainService IO)
-    blockchainService = newBlockchain >>= (newBlockchainServiceHandle config)
