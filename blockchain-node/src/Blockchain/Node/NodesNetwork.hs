@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Blockchain.Node.NodesNetwork
@@ -15,7 +14,7 @@
 module Blockchain.Node.NodesNetwork (
     NodesNetworkService(..)
 
-  , newNodesNetworkServiceHandle
+  , newHandle
 ) where
 
 import           Control.Concurrent (forkIO, threadDelay)
@@ -28,7 +27,7 @@ import           Data.Maybe (listToMaybe)
 import qualified Data.Set as S
 
 import           Blockchain.Node.Config (BlockchainConfig(..))
-import           Blockchain.Node.Core ((<$$>), Blockchain(..), Node(..), thisNode)
+import           Blockchain.Node.Core ((<$$>), NodeState(..), Node(..), thisNode)
 import           Blockchain.Node.RestApi.Client (NodeRequest(..), newBlockchainRestApiClient, runRequests)
 import           Blockchain.Node.Service (BlockchainService(..), MessageLevel(..), StatusMessage(..))
 import qualified Logger
@@ -43,23 +42,23 @@ data NodesNetworkService = NodesNetworkService {
   }
 
 
-isCurrentNodeABeacon :: BlockchainConfig -> Blockchain -> Bool
-isCurrentNodeABeacon cfg blockchain
-    = (url $ thisNode cfg blockchain) == beaconNodeUrl cfg
+isCurrentNodeABeacon :: BlockchainConfig -> NodeState -> Bool
+isCurrentNodeABeacon cfg nodeState
+    = (url $ thisNode cfg nodeState) == beaconNodeUrl cfg
 
 
-newNodesNetworkServiceHandle :: BlockchainConfig
-                             -> Blockchain
-                             -> IO NodesNetworkService
-newNodesNetworkServiceHandle cfg blockchain =
+newHandle :: NodeState
+          -> IO NodesNetworkService
+newHandle nodeState = do
+  let cfg = config nodeState
   return $ NodesNetworkService {
-    registerToBeacon = if isCurrentNodeABeacon cfg blockchain
+    registerToBeacon = if isCurrentNodeABeacon cfg nodeState
       then
         return $ StatusMessage INFO "Current node is a beacon"
       else do
         let nodeRequest = NodeRequest
               (Node "" (beaconNodeUrl cfg))
-              (registerNodes newBlockchainRestApiClient [thisNode cfg blockchain])
+              (registerNodes newBlockchainRestApiClient [thisNode cfg nodeState])
 
         result <- listToMaybe <$> runRequests [nodeRequest]
 
@@ -76,7 +75,7 @@ newNodesNetworkServiceHandle cfg blockchain =
 
     runBackgroundNodesResolver = void $ forkIO $ forever $ do
       -- just run on itself
-      let targetNodes = [thisNode cfg blockchain]
+      let targetNodes = [thisNode cfg nodeState]
       let nodeRequests = map (\node -> NodeRequest
               node
               (resolveNodes newBlockchainRestApiClient))
@@ -88,8 +87,8 @@ newNodesNetworkServiceHandle cfg blockchain =
       threadDelay $ consensusInterval cfg,
 
     runBackgroundNodesListPropagator = void $ forkIO $ forever $ do
-      let thisNode' = thisNode cfg blockchain
-      otherNodes <- S.toList <$$> readTVarIO $ nodes blockchain
+      let thisNode' = thisNode cfg nodeState
+      otherNodes <- S.toList <$$> readTVarIO $ nodes nodeState
       let nodesToSend = nub $ [thisNode'] ++ otherNodes
       let nodeRequests = map (\node -> NodeRequest
               node

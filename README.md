@@ -3,6 +3,10 @@
 [![](https://i.imgur.com/JOV3zgNl.png)](https://imgur.com/a/S6SLB)
 
 Just a simple implementation of the blockchain, inspired by the article: https://hackernoon.com/learn-blockchains-by-building-one-117428612f46
+### Features
+* multinode miners network
+* ECDSA transaction signing
+* simple web UI with basic account panel
 
 ## How to run
 
@@ -36,6 +40,20 @@ docker-compose up --build -d ui
 4. Open url `http://localhost:8000` in browser
 
 
+## Local development
+### Automatic Haskell builds
+Run the following command to automatically build the project & haddock
+documentation after file changes:
+```
+stack test -j 8 --fast --haddock-deps --file-watch
+```
+### NPM live reload
+Run the following command in the `blockchain-ui-fe` directory:
+```
+ng serve --open
+```
+
+
 ## Node HTTP Endpoints
 The node is listening on `8000` port and the following endpoints are available:
 
@@ -52,7 +70,3 @@ The node is listening on `8000` port and the following endpoints are available:
 | `POST /nodes/resolve` | queries all nodes, and checks if this one has the longest correct chain
 
 
-
-## TODO
-* [ ] Transactions signing with ECDSA
-* [ ] Transactions validation when mining block

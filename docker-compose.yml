@@ -11,7 +11,7 @@ services:
     entrypoint:
       - /bin/sh
       - -c
-      - 'stack --install-ghc clean && (cd blockchain-ui-fe && npm install && ng build --prod) && stack-build upx'
+      - 'stack --install-ghc clean && (cd blockchain-ui-fe && npm install && ng build --env=prod) && stack-build upx'
 
   beacon-node:
     image: carbolymer/blockchain-node

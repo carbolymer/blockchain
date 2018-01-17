@@ -1,7 +1,4 @@
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE OverloadedStrings #-}
-
------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- |
 -- Module      :  Blockchain.Service
 -- Copyright   :  (c) carbolymer
@@ -13,7 +10,7 @@
 --
 -- Functions and data types adapting Blockchain module to the HTTP API.
 --
------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 module Blockchain.Node.Service (
     BlockchainService(..)
@@ -23,12 +20,12 @@ module Blockchain.Node.Service (
   , StatusMessage(..)
 ) where
 
-import           Control.Monad.IO.Class (MonadIO)
 import           Data.Aeson (FromJSON, ToJSON)
 import           Data.Text (Text)
 import           GHC.Generics (Generic)
 
-import           Blockchain.Node.Core (Block, Node, Transaction)
+import           Blockchain.Node.Core (Block, Node)
+import           Blockchain.Node.Transaction (NewTransactionRequest, Transaction)
 
 -- | Value of node health
 data HealthStatus = OK  -- ^ All systems running
@@ -65,9 +62,9 @@ instance ToJSON StatusMessage
 instance FromJSON StatusMessage
 
 -- | A blockchain main service
-data (MonadIO m) => BlockchainService m = BlockchainService {
+data BlockchainService m = BlockchainService {
     getHealthCheck :: m HealthCheck
-  , newTransaction :: Transaction -> m StatusMessage
+  , newTransaction :: NewTransactionRequest -> m StatusMessage
   , getConfirmedTransactions :: m [Transaction]
   , getUnconfirmedTransactions :: m [Transaction]
   , mineBlock :: m (Maybe Block)

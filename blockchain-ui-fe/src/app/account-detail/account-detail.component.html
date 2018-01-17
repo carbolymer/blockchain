@@ -36,8 +36,10 @@
       <label for="amount">Amount:</label>
     </div>
     <div class="row">
+      <p>Only nodes, which mined any block, can be recipients at this moment.</p>
       <p>Transaction will be added to the new transactions queue. After mining new block, the transaction after verification will be added
         to the blockchain.</p>
+      <p>Each node has separate mempool, which means, unless the sender node mine a new block, the transaction <u>will not</u> be included in the blockchain.</p>
     </div>
   </div>
 

@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE OverloadedStrings #-}
 module Blockchain.UI.Service.Server (
     UiService(..)
   , newUiServiceHandle
@@ -9,18 +7,20 @@ import Control.Monad.IO.Class (MonadIO)
 import Data.IORef (readIORef)
 import Data.Text (Text)
 
-import Blockchain.Node.Core (Transaction)
+import Blockchain.Node.Account (Account(accountId))
 import Blockchain.Node.Service (StatusMessage)
+import Blockchain.Node.Transaction (NewTransactionRequest, Transaction)
 import Blockchain.UI.Config (UiConfig)
-import Blockchain.UI.Core (Account(..), AppState(..), NodeDto, createNewTransaction, getAccounts, mineOnNode, newApp,
-  runBackgroundStateUpdater)
+import Blockchain.UI.Core (AppState(..), NodeDto,
+    createNewTransaction, getAccounts, mineOnNode, newApp,
+    runBackgroundStateUpdater)
 
 
 data (MonadIO m) => UiService m = UiService {
   getNodes :: m [NodeDto],
   mine :: Text -> m StatusMessage,
   getTransactions :: m [Transaction],
-  newTransaction :: Transaction -> m StatusMessage,
+  newTransaction :: NewTransactionRequest -> m StatusMessage,
   getAccountsList :: m [Account]
 }
 

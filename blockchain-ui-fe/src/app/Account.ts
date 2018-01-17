@@ -8,7 +8,8 @@ export class Account {
 }
 
 export function getTransactionHistory(account: Account): TransactionHistoryEntry[] {
-  return (<Array<Transaction>> account.accountTransactions).flatMap(transaction => {
+  return (<Array<Transaction>> account.accountTransactions).flatMap(dto => {
+    let transaction: Transaction = Transaction.fromTransactionDto(dto);
     let entries: Array<TransactionHistoryEntry> = [];
     if (transaction.recipient === account.accountId
       && transaction.sender === account.accountId) {

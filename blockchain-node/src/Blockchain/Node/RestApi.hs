@@ -1,6 +1,4 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE TypeOperators #-}
------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- |
 -- Module      :  Blockchain.Node.RestApi
 -- Copyright   :  (c) carbolymer
@@ -11,7 +9,7 @@
 --
 -- Defines REST API for the node
 --
------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 module Blockchain.Node.RestApi (
     RestApi
   , restApi
@@ -19,14 +17,15 @@ module Blockchain.Node.RestApi (
 
 import Servant ((:>), (:<|>)(..), Get, JSON, Post, Proxy(..), ReqBody)
 
-import Blockchain.Node.Core (Block, Node, Transaction,)
-import Blockchain.Node.Service (HealthCheck(..), StatusMessage)
+import Blockchain.Node.Core (Block, Node)
+import Blockchain.Node.Service (HealthCheck, StatusMessage)
+import Blockchain.Node.Transaction (NewTransactionRequest, Transaction)
 
 
 -- | The definition of the node API
 type RestApi = "healthcheck" :> Get '[JSON] HealthCheck
           -- new transaction
-          :<|> "transactions" :> "new" :> ReqBody '[JSON] Transaction :>  Post '[JSON] StatusMessage
+          :<|> "transactions" :> "new" :> ReqBody '[JSON] NewTransactionRequest :>  Post '[JSON] StatusMessage
           -- list of confirmed transactions in the chain
           :<|> "transactions" :> "confirmed" :> Get '[JSON] [Transaction]
           -- list of not confirmed transactions

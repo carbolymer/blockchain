@@ -7,6 +7,7 @@ div#account-info-card {
 #account-id {
   font-size: 2rem;
   font-weight: 300;
+  word-wrap: break-word;
 }
 
 #account-balance {
@@ -22,11 +23,12 @@ div#account-info-card a {
 
 #newTransactionModal {
   max-width: 40em;
-  max-height: 37em;
+  max-height: 44em;
 }
 
 #newTransactionModal div.modal-content {
   padding: 4em;
+  overflow: visible;
 }
 
 #newTransactionModal div.modal-content > h4 {

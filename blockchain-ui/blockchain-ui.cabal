@@ -37,7 +37,21 @@ library
                      , warp >= 3.2.13
   default-language:    Haskell2010
   ghc-options:         -O2 -optc-O2 -Wall -Wno-name-shadowing -Wno-orphans
-  default-extensions:  NoMonomorphismRestriction
+                       -Wincomplete-record-updates -Wincomplete-uni-patterns
+                       -Wredundant-constraints -Wcompat
+  default-extensions:  BangPatterns
+                     , DataKinds
+                     , DeriveDataTypeable
+                     , DeriveGeneric
+                     , FlexibleContexts
+                     , FlexibleInstances
+                     , GeneralizedNewtypeDeriving
+                     , MultiParamTypeClasses
+                     , NoMonomorphismRestriction
+                     , OverloadedStrings
+                     , RankNTypes
+                     , StandaloneDeriving
+                     , TypeOperators
 
 executable blockchain-ui-exe
   hs-source-dirs:      app

@@ -1,6 +1,6 @@
 import {Injectable} from '@angular/core';
 import {HttpClient, HttpHeaders} from "@angular/common/http";
-import {Transaction} from "./Transaction";
+import {NewTransactionRequest, Transaction} from "./Transaction";
 import {Observable} from "rxjs/Observable";
 import {catchError, map} from "rxjs/operators";
 import {handleError} from "./util";
@@ -19,17 +19,17 @@ export class TransactionService {
   }
 
   getTransactions(): Observable<Transaction[]> {
-    return this.httpService.get<Transaction[]>(this.transactionsUrl)
+    return this.httpService.get<Object[]>(this.transactionsUrl)
       .pipe(
-        map(transactions => {
-          transactions.forEach(transaction => transaction.time = new Date(transaction.time));
-          return transactions.sort((tx1, tx2) => tx2.time.getTime() - tx1.time.getTime());;
+        map(dtos => {
+          let transactions: Transaction[] = dtos.map(dto => Transaction.fromTransactionDto(dto));
+          return transactions.sort((tx1, tx2) => tx2.time.getTime() - tx1.time.getTime());
         }),
         catchError(handleError('getTransactions', []))
       );
   }
 
-  newTransaction(transaction: Transaction): Observable<StatusMessage> {
+  newTransaction(transaction: NewTransactionRequest): Observable<StatusMessage> {
     return this.httpService.post<StatusMessage>(`${this.transactionsUrl}/new`, transaction, httpOptions)
       .pipe(
         map((messageDto: any) => {

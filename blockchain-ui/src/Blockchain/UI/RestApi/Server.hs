@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 module Blockchain.UI.RestApi.Server (
   bootstrap
 ) where

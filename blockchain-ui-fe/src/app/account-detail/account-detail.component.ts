@@ -2,12 +2,13 @@ import {Component, EventEmitter, OnDestroy, OnInit} from '@angular/core';
 import {ActivatedRoute} from "@angular/router";
 import {AccountService} from "../account.service";
 import {TransactionService} from "../transaction.service";
-import {Transaction, TransactionHistoryEntry} from "../Transaction";
+import {NewTransactionRequest, Transaction, TransactionHistoryEntry} from "../Transaction";
 import {Account, getTransactionHistory} from "../Account";
 import {Location} from "@angular/common";
 import {StatusMessage} from "../StatusMessage";
 import {MaterializeAction} from "angular2-materialize";
 import {MessageService} from "../message.service";
+
 
 @Component({
   selector: 'app-account-detail',
@@ -62,8 +63,10 @@ export class AccountDetailComponent implements OnInit, OnDestroy {
   }
 
   createTransaction(): void {
-    // TODO generate date on backend to avoid spoofing
-    this.transactionService.newTransaction(new Transaction(Number(this.transferAmount), this.account.accountId, this.recipientId, new Date()))
+    this.transactionService.newTransaction(new NewTransactionRequest(
+      Number(this.transferAmount),
+      this.account.accountId,
+      this.recipientId))
       .subscribe((statusMessage: StatusMessage) => {
         this.closeModal();
         this.messageService.add(statusMessage);

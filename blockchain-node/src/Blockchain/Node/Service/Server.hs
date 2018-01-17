@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Blockchain.Node.Service.Server
@@ -12,7 +11,7 @@
 --
 -----------------------------------------------------------------------------
 
-module Blockchain.Node.Service.Server (newBlockchainServiceHandle) where
+module Blockchain.Node.Service.Server (newHandle) where
 
 import           Control.Monad.IO.Class (MonadIO)
 import           Control.Concurrent (forkIO)
@@ -20,25 +19,29 @@ import           Control.Concurrent.STM.TVar (readTVarIO)
 import           Data.Either (rights)
 import qualified Data.Set as S
 import           Data.String (fromString)
+import           Data.Text (pack)
 import           Data.Time (getCurrentTime)
 
-import Blockchain.Node.Config (BlockchainConfig(..))
-import Blockchain.Node.Core ((<$$>), Block(..), Blockchain(..), addNodes, addTransaction, evalApp,
-    runApp, mineNewBlock, thisNode, validateAndUpdateChain)
-import Blockchain.Node.NodesNetwork (NodesNetworkService(..))
-import Blockchain.Node.Service (BlockchainService(..), HealthStatus(..), HealthCheck(..), MessageLevel(..), StatusMessage(..))
-import Blockchain.Node.RestApi.Client (NodeRequest(..), RequestException, newBlockchainRestApiClient, runRequests)
+import           Blockchain.Node.Core ((<$$>), Block(..), NodeState(..))
+import qualified Blockchain.Node.Core as Core
+import qualified Blockchain.Node.Transaction as Transaction
+import           Blockchain.Node.NodesNetwork (NodesNetworkService(..))
+import           Blockchain.Node.Service (BlockchainService(..), HealthStatus(..),
+                  HealthCheck(..), MessageLevel(..), StatusMessage(..))
+import           Blockchain.Node.RestApi.Client (NodeRequest(..), RequestException,
+                  newBlockchainRestApiClient, runRequests)
+import           Blockchain.Node.MemPool (unMemPool)
 import qualified Logger
 
 infoL, warnL :: (MonadIO m) => String -> m ()
 [infoL, warnL] = Logger.getLogger "Blockchain.Node.Service.Server" [Logger.INFO, Logger.WARNING]
 
 -- | Creates new `BlockchainService` handle
-newBlockchainServiceHandle :: BlockchainConfig
-                           -> Blockchain
-                           -> NodesNetworkService
-                           -> IO (BlockchainService IO)
-newBlockchainServiceHandle cfg blockchain nodesNetworkService = do
+newHandle :: NodeState
+          -> NodesNetworkService
+          -> IO (BlockchainService IO)
+newHandle nodeState nodesNetworkService = do
+  let cfg = config nodeState
   -- we can do it in the background
   _ <- forkIO $ do
     statusMessage <- registerToBeacon nodesNetworkService
@@ -49,35 +52,46 @@ newBlockchainServiceHandle cfg blockchain nodesNetworkService = do
   return $ BlockchainService {
     getHealthCheck = return $ HealthCheck OK,
 
-    newTransaction = \transaction -> do
-      _ <- runApp cfg (addTransaction transaction) blockchain
-      return $ StatusMessage INFO "Transaction was addedd",
+    newTransaction = \txRequest -> do
+      if Transaction.newSender txRequest == Core.uuid nodeState
+      then do currentTime <- getCurrentTime
+              _ <- Core.runApp nodeState $ do
+                Core.newTransaction
+                  (Transaction.newRecipient txRequest)
+                  (Transaction.newAmount txRequest)
+                  currentTime
+              return $ StatusMessage INFO "Transaction was addedd"
+      else return $ StatusMessage ERROR $ pack $
+        "Incorrect sender address: " ++ (show $ Transaction.newSender txRequest),
 
-    getConfirmedTransactions = concat <$> (map transactions) <$$> readTVarIO $ blocks blockchain,
+    getConfirmedTransactions = Core.runApp
+      nodeState Core.getConfirmedTransactions,
 
-    getUnconfirmedTransactions = readTVarIO $ currentTransactions blockchain,
+    getUnconfirmedTransactions = unMemPool <$> (readTVarIO $ memPool nodeState),
 
     mineBlock = do
       currentTime <- getCurrentTime
-      evalApp cfg (mineNewBlock currentTime) blockchain,
+      Core.runApp nodeState (Core.mineNewBlock currentTime),
 
-    getBlockchain = readTVarIO $ blocks blockchain,
+    getBlockchain = readTVarIO $ blocks nodeState,
 
     getNodes = do
-      let thisNode' = thisNode cfg blockchain
-      ([thisNode'] ++) <$> S.toList <$$> readTVarIO $ nodes blockchain,
+      let thisNode' = Core.thisNode cfg nodeState
+      ([thisNode'] ++) <$> S.toList <$$> readTVarIO $ nodes nodeState,
 
     registerNodes = \nodes -> do
-      _ <- runApp cfg (addNodes nodes) blockchain
+      _ <- Core.runApp nodeState (Core.addNodes nodes)
       return $ StatusMessage INFO "Nodes addes to nodes list",
 
     resolveNodes = do
-      nodesList <- S.toList <$$> readTVarIO $ nodes blockchain
-      let requestsList = map (\node -> NodeRequest node (getBlockchain newBlockchainRestApiClient)) nodesList
-      wasChainUpdated <- evalApp cfg (fetchChainsAndResolve requestsList) blockchain
+      -- TODO add mempool propagation
+      nodesList <- S.toList <$$> readTVarIO $ nodes nodeState
+      let getBlockchainRequests = map (\node ->
+            NodeRequest node (getBlockchain newBlockchainRestApiClient)) nodesList
+      wasChainUpdated <- Core.runApp nodeState (fetchChainsAndResolve getBlockchainRequests)
       let message = if wasChainUpdated then "Longer chain found. Current chain was updated."
                                        else "We have longest chain. Left intact."
-      infoL message
+--       infoL message
       return $ StatusMessage INFO (fromString message)
   }
   where
@@ -89,4 +103,4 @@ newBlockchainServiceHandle cfg blockchain nodesNetworkService = do
     fetchChainsAndResolve requestsList = do
       result <- runRequests requestsList
       mapM_ logNodeRequestResult result
-      validateAndUpdateChain (rights result)
+      Core.validateAndUpdateChain (rights result)
