@@ -1,8 +1,7 @@
-FROM frolvlad/alpine-glibc:alpine-3.6
+FROM frolvlad/alpine-glibc:alpine-3.9
 RUN apk update && apk add gmp-dev && \
     rm -rf /var/cache/apk/*
 COPY out/* /usr/local/bin/
 COPY blockchain-ui-fe/dist/* /srv/
 ENTRYPOINT ["/usr/local/bin/blockchain-node-exe", "8000"]
-
 # vim: syntax=dockerfile:

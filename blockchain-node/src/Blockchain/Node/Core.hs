@@ -115,13 +115,15 @@ instance FromJSON Block
 data Node = Node {
   id  :: !Text, -- ^ UUID of the node
   url :: !Text  -- ^ URL under which the node is accessible
-} deriving (Ord, Show, Generic)
+} deriving (Show, Generic)
 
 instance ToJSON Node
 instance FromJSON Node
 instance Eq Node where
   -- id is unique
   a == b = (id a) == (id b)
+instance Ord Node where
+  compare a b = compare (id a) (id b)
 
 
 -- | Creates new blockchain node state with the genesis block

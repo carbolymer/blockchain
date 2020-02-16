@@ -1,5 +1,5 @@
-FROM carbolymer/haskell:stack-1.6.3
-ENV NODEJS_VERSION  8.9.4
+FROM carbolymer/haskell:stack-2.1.3
+ENV NODEJS_VERSION  12.16.0
 ENV PATH            $PATH:/opt/node/bin
 WORKDIR /workspace
 RUN apt update && apt install -y wget python && rm -rf /var/lib/apt/lists/* /usr/share/man/* && \
@@ -17,5 +17,4 @@ RUN apt update && apt install -y wget python && rm -rf /var/lib/apt/lists/* /usr
     chmod -R 777 /opt/node
 USER buildusr:buildusr
 RUN npm install -g @angular/cli
-
 # vim: syntax=dockerfile:

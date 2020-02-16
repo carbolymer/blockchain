@@ -6,7 +6,7 @@ module NetworkUtil (
 import           Control.Monad.Catch (MonadCatch, catch, try)
 import           Control.Monad.IO.Class (MonadIO, liftIO)
 import           Data.Text (Text, unpack)
-import           Servant.Client.Core.Internal.BaseUrl (BaseUrl(..), InvalidBaseUrlException, parseBaseUrl)
+import           Servant.Client.Core.BaseUrl (BaseUrl(..), InvalidBaseUrlException, parseBaseUrl)
 
 
 isValidUrl :: (MonadIO m) => Text -> m Bool

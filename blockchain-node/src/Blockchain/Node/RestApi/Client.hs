@@ -28,8 +28,8 @@ import Data.Text (unpack)
 import Data.Typeable (Typeable)
 import Network.HTTP.Client (defaultManagerSettings, newManager)
 import Servant ((:<|>)(..))
-import Servant.Client (ClientEnv(..), ClientM, ServantError, client, runClientM)
-import Servant.Client.Core.Internal.BaseUrl (BaseUrl, InvalidBaseUrlException, parseBaseUrl)
+import Servant.Client (ClientEnv(..), ClientM, ClientError, client, mkClientEnv, runClientM)
+import Servant.Client.Core.BaseUrl (BaseUrl, InvalidBaseUrlException, parseBaseUrl)
 
 import Blockchain.Node.Core (Node(..))
 import Blockchain.Node.Service (BlockchainService(..))
@@ -64,14 +64,14 @@ runRequests requests = do
   manager <- liftIO $ newManager defaultManagerSettings
   liftIO $ forConcurrently requests $ \request -> runExceptT $ do
     nodeUrl <- getNodeUrl request
-    runClientExT (nodeRequest request) (ClientEnv manager nodeUrl)
+    runClientExT (nodeRequest request) (mkClientEnv manager nodeUrl)
   where
     getNodeUrl :: NodeRequest a -> ExceptT RequestException IO BaseUrl
     getNodeUrl request = (toRequestException :: ExceptionMapperT InvalidBaseUrlException BaseUrl) $
         try $ parseBaseUrl $ unpack $ url $ targetNode request
 
     runClientExT :: ClientM a -> ClientEnv -> ExceptT RequestException IO a
-    runClientExT request env = (toRequestException :: ExceptionMapperT ServantError a) $
+    runClientExT request env = (toRequestException :: ExceptionMapperT ClientError a) $
         runClientM request env
 
 
