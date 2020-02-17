@@ -1,11 +1,10 @@
-version: '3.7'
+version: '3'
 services:
   build:
     image:  blockchain-build
     build:
       context: .
       dockerfile: Dockerfile-build
-      target: builder
     volumes:
       - .stack:/home/buildusr/.stack
       - .:/workspace
