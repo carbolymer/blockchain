@@ -6,12 +6,14 @@ services:
       context: .
       dockerfile: Dockerfile-build
     volumes:
-      - .stack:/home/buildusr/.stack
+      # uid and gid in the Dockerfile-build must match the system user uid and gid
+      - "${HOME}/.stack:/home/buildusr/.stack"
       - .:/workspace
+    user: "1000"
     entrypoint:
       - /bin/sh
       - -c
-      - 'stack --install-ghc clean && (cd blockchain-ui-fe && npm install && ng build --env=prod) && stack-build upx'
+      - 'stack -v --install-ghc clean && (cd blockchain-ui-fe && npm install && ng build --env=prod) && stack-build upx'
 
   beacon-node:
     image: carbolymer/blockchain-node
