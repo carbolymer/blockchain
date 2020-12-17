@@ -1,0 +1,19 @@
+cradle:
+  stack:
+    - path: "./blockchain-node/src"
+      component: "blockchain-node:lib"
+
+    - path: "./blockchain-node/app/Main.hs"
+      component: "blockchain-node:exe:blockchain-node-exe"
+
+    - path: "./blockchain-node/test"
+      component: "blockchain-node:test:unit"
+
+    - path: "./blockchain-ui/src"
+      component: "blockchain-ui:lib"
+
+    - path: "./blockchain-ui/app/Main.hs"
+      component: "blockchain-ui:exe:blockchain-ui-exe"
+
+    - path: "./blockchain-ui/test"
+      component: "blockchain-ui:test:blockchain-ui-test"
